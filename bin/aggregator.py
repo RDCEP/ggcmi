@@ -55,7 +55,7 @@ class AggMask(object):
         self.dat['names'].append('global') # add global mask as a trick
         self.dat['units'].append('')
         self.dat['longnames'].append('')
-        self.dat['data'].append(masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons))))
+        self.dat['data'].append(masked_array(zeros((nlats, nlons)), mask = zeros((nlats, nlons))))
         f.close()
     def names(self):     return self.dat['names']
     def units(self):     return self.dat['units']
