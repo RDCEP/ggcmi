@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 # import modules
-import itertools, sys, re, time as tm
+import sys, re, time as tm
 from os import listdir
-from os.path import sep, exists
+from datetime import datetime
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
+from os.path import sep, exists, getmtime
 from numpy.ma import masked_array, unique, masked_where
 from numpy import pi, zeros, ones, cos, resize, where, ceil, double
 
@@ -77,54 +78,57 @@ parser.add_option("-n", "--numbatches", dest = "num_batches", default = "64", ty
                   help = "Total number of batches")
 parser.add_option("-d", "--dir", dest = "dir", default = "", type = "string",
                   help = "Directory in which to perform aggregration")
-parser.add_option("-m", "--mod", dest = "mod", default = "pDSSAT.pm,pDSSAT.pt,pAPSIM", type = "string",
-                  help = "Comma-separated list of crop models")
+parser.add_option("-m", "--mod", dest = "mod", default = "pDSSAT,pAPSIM", type = "string",
+                  help = "Comma-separated list of crop models (* = all models)")
 parser.add_option("-w", "--weath", dest = "weath", default = "AgCFSR,AgMERRA,CFSR,ERAI,GRASP,Princeton,WATCH,WFDEI.CRU,WFDEI.GPCC", type = "string",
-                  help = "Comma-separated list of weather datasets")
+                  help = "Comma-separated list of weather datasets (* = all weather datasets)")
 parser.add_option("-c", "--crop", dest = "crop", default = "maize", type = "string",
-                  help = "Comma-separated list of crops")
+                  help = "Comma-separated list of crops (* = crops, excluding 'others')")
 parser.add_option("-i", "--landuseir", dest = "landuseir", default = "", type = "string",
                   help = "Landuse (weight) mask file for irrigation", metavar = "FILE")
 parser.add_option("-r", "--landuserf", dest = "landuserf", default = "", type = "string",
                   help = "Landuse (weight) mask file for rainfed", metavar = "FILE")
 parser.add_option("-a", "--agg", dest = "agg", default = "", type = "string",
                   help = "Comma-separated list of aggregation mask files")
+parser.add_option("-t", "--tsfile", dest = "tsfile", default = "timestamps.txt", type = "string",
+                  help = "File of timestamps", metavar = "FILE")
 parser.add_option("-o", "--outdir", dest = "outdir", default = "", type = "string",
                   help = "Comma-separated list of output directories to save results for different aggregation masks")
 options, args = parser.parse_args()
 
-# CONSTANTS
-# =========
-fillv = 1e20
+fillv = 1e20 # some constants
 yieldthr1 = 0.1 # t/ha
-yieldthr2 = 50
-
-dssat_pm_scens = ['fullharm', 'default', 'harmnon'] # scenarios
-dssat_pt_scens = ['fullharm']
-apsim_scens = dssat_pm_scens
-dssat_pm_scens_full = ['fullharm_noirr', 'fullharm_firr', 'default_noirr', 'default_firr', 'harmnon_noirr', 'harmnon_firr']
-dssat_pt_scens_full = ['fullharm_noirr', 'fullharm_firr']
-apsim_scens_full = dssat_pm_scens_full
-
-dssatvars = ['yield', 'pirrww', 'plant-day', 'maty-day', 'aet', 'gsprcp', 'anth-day', 'biom', 'gsrsds', 'sumt'] # variables
-apsimvars = ['yield', 'pirrww', 'plant-day', 'maty-day', 'aet', 'gsprcp', 'anth-day', 'biom', 'gsrsds', 'sumt', 'initr', 'leach', 'sco2', 'sn2o']
-# =========
+yieldthr2 = 30
 
 rootdir = options.dir # root directory
 if rootdir[-1] == sep: rootdir = rootdir[: -1] # remove final separator
 
-models = options.mod.split(',') # model, climate, and crop names
-climates = options.weath.split(',')
-crops = options.crop.split(',')
+if options.mod == '*': # model
+    models = listdir(rootdir) # process all models
+    if 'upload_stats' in models: models.remove('upload_stats') 
+else:
+    models = options.mod.split(',') # model, climate, and crop names
+
 aggmasks = options.agg.split(',') # aggregration masks and output directories
 aggmaskdirs = options.outdir.split(',')
 
 totfiles = [] # total files to create
-for i in itertools.product(models, climates, crops):
-    d = sep.join(i)
-    if exists(rootdir + sep + d) and len(listdir(rootdir + sep + d)):
-        for j in range(len(aggmasks)):
-            totfiles.append([d, aggmasks[j], aggmaskdirs[j]])
+for i in models:
+    if options.weath == '*':
+        climates = listdir(rootdir + sep + i)
+    else:
+        climates = options.weath.split(',')
+    for j in climates:
+        if options.crop == '*':
+            crops = listdir(sep.join([rootdir, i, j]))
+	    if 'others' in crops: crops.remove('others')
+        else:
+            crops = options.crop.split(',')
+        for k in crops:
+            d = sep.join([i, j, k])
+            if exists(rootdir + sep + d) and len(listdir(rootdir + sep + d)):
+                for m in range(len(aggmasks)):
+                    totfiles.append([d, aggmasks[m], aggmaskdirs[m]])
 nfiles = len(totfiles)
 
 batch = options.batch # find out start and end indices for batch
@@ -171,12 +175,28 @@ lat = aggmaskobjs[0].lat # compute area as function of latitude
 area = 100 * (111.2 / 2)**2 * cos(pi * lat / 360)
 area = resize(area, (nlons, nlats)).T
 
+tslines = open(options.tsfile).readlines() # load timestamps file
+tsdic = {}
+for i in range(len(tslines)):
+    tsparts = tslines[i].strip('\n').split(' ')
+    if len(tsparts) == 3: # contains directory, date, time
+        tsdic[tsparts[0]] = ' '.join(tsparts[1 : 3])
+
+tsfile = open('timestamps_' + str(batch) + '.txt', 'w') # create new timestamp file
+
 print 'START INDEX = ' + str(si) + ', END IDX = ' + str(ei) + ' . . .'
 for i in range(nfiles): # iterate over subdirectories
     dir = totfiles[i][0]
     aggmask = totfiles[i][1]
     outdir = totfiles[i][2]
     print 'PROCESSING INDEX = ' + str(si + i) + ': DIRECTORY ' + str(rootdir + sep + dir) + ' . . .'
+    
+    ts = datetime.fromtimestamp(getmtime(rootdir + sep + dir)).strftime('%Y-%m-%d %H:%M')
+    tsfile.write(dir + ' ' + ts + '\n')
+    if dir in tsdic: # check if file has been modified
+        if ts == tsdic[dir]: # same timestamp means already processed
+            print 'Timstamp has not changed. Skipping directory . . .'
+            continue
     
     cidx = uqcrops.index(dir.split(sep)[2].title()) # crop
     
@@ -189,23 +209,27 @@ for i in range(nfiles): # iterate over subdirectories
     audata = amask.udata()
     nmasks = len(anames)
 
-    mod = dir.split(sep)[0] # variables and scenarios
-    if mod == 'pDSSAT.pm':
-        vars = dssatvars
-        scens = dssat_pm_scens
-        scens_full = dssat_pm_scens_full
-    elif mod == 'pDSSAT.pt':
-        vars = dssatvars
-        scens = dssat_pt_scens
-        scens_full = dssat_pt_scens_full
-    elif mod == 'pAPSIM':
-        vars = apsimvars
-        scens = apsim_scens
-        scens_full = apsim_scens_full
-
     files = listdir(rootdir + sep + dir) # get files
+    
+    vars = []; scens = []; scens_full = [] # get variables and scenarios
+    for j in range(len(files)):
+        fs = files[j].split('_')
+    	if len(fs) == 10:    
+            vars.append(fs[5])
+            scens.append(fs[3])
+            scens_full.append('_'.join(fs[3 : 5]))
+        elif len(fs) == 11: # pt files, etc.
+            vars.append(fs[6])
+            scens.append(fs[3] + '_' + fs[5])
+ 	    scens_full.append('_'.join(fs[3 : 6]))
+	else:
+	    continue # skip irregular file
+    vars = list(set(vars)); vars.sort()
+    scens = list(set(scens)); scens.sort()
+    scens_full = list(set(scens_full)); scens_full.sort()
 
     f = sep.join([rootdir, dir, files[0]]) # use first file to get time and units
+    print 'Opening file:', f
     ncf = nc(f)
     time = ncf.variables['time'][:]
     tunits = ncf.variables['time'].units
@@ -216,6 +240,7 @@ for i in range(nfiles): # iterate over subdirectories
     ns = len(scens) # number of scenarios    
 
     filename = files[0].split('_') # use first file to get filename
+    if len(filename) == 11: filename.remove(filename[3]) # remove the extra label for pt
     filename.remove(filename[3])
     filename.remove(filename[3])
     filename.remove(filename[3])
@@ -236,8 +261,11 @@ for i in range(nfiles): # iterate over subdirectories
         scen_irr = scens_full[j]
         
         scen_irr_split = scen_irr.split('_') # find scenario and irr
-        sidx = scens.index(scen_irr_split[0])
-        iidx = int(scen_irr_split[1] != 'firr')
+        if len(scen_irr_split) == 2:
+            sidx = scens.index(scen_irr_split[0])
+        else:
+            sidx = scens.index('_'.join(scen_irr_split[0 :: 2]))
+	iidx = int(scen_irr_split[1] != 'firr')
 
         weight = landmasksir[cidx] if not iidx else landmasksrf[cidx] # weights
 
@@ -246,7 +274,6 @@ for i in range(nfiles): # iterate over subdirectories
         yvars = yf.variables.keys()
         yidx = ['yield' in v for v in yvars].index(True)
         yieldvar = yf.variables[yvars[yidx]][:]
-        yieldvar = yieldvar.transpose((2, 0, 1))
         yieldvar = masked_where(yieldvar < yieldthr1, yieldvar) # mask yields based on thresholds
         yieldvar = masked_where(yieldvar > yieldthr2, yieldvar)
         yieldmask = yieldvar.mask
@@ -276,7 +303,7 @@ for i in range(nfiles): # iterate over subdirectories
             vidx = [vars[k] in v for v in fvars].index(True)
             var = vf.variables[fvars[vidx]]
             if not j: vunits[k] = var.units if 'units' in var.ncattrs() else ''
-            var = var[:].transpose((2, 0, 1))
+            var = var[:]
             vf.close()
                        
             print '  Processing aggregration masks . . .'
@@ -287,7 +314,7 @@ for i in range(nfiles): # iterate over subdirectories
                     if ridx.sum():
                         vartmp[m][:] = 0.
                         idx1, idx2, idx3 = where(aselect[m][:, t, :, :])
-                        vartmp[m][idx1, idx2, idx3] = var[t, idx2, idx3] * weight[idx2, idx3] * area[idx2, idx3] * aselect[m][idx1, t, idx2, idx3]        
+			vartmp[m][idx1, idx2, idx3] = var[t, idx2, idx3] * weight[idx2, idx3] * area[idx2, idx3] * aselect[m][idx1, t, idx2, idx3]        
                         vsum = vartmp[m].sum(axis = 2).sum(axis = 1)
                         averages[m][k, ridx, t, sidx, iidx] = vsum[ridx] / areas[m][ridx, t, sidx, iidx]
 
@@ -308,5 +335,7 @@ for i in range(nfiles): # iterate over subdirectories
             avev.units = vunits[k]
             avev.long_name = 'average ' + name + ' ' + vars[k]
     f.close()
+
+tsfile.close() # close timestamps file
 
 print 'DONE!'
