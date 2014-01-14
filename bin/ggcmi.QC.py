@@ -55,7 +55,8 @@ if dir[-1] == sep: dir = dir[: -1] # remove final separator
 # crop models
 if options.mod == '*':
     dirs = listdir(dir) # process all models
-    dirs.remove('upload_stats')
+    if 'upload_stats' in dirs: dirs.remove('upload_stats')
+    if 'aggregations' in dirs: dirs.remove('aggregations')
 else:
     dirs = options.mod.split(',')
 
@@ -70,7 +71,7 @@ numclims = len(climmodels)
 # crops
 if options.crop == '*':
     crops = listdir(dir + sep + dirs[0] + sep + climmodels[0])
-    crops.remove('others')
+    if 'others' in crops: crops.remove('others')
 else:
     crops = options.crop.split(',')
 cropabbr = abr_crop_names(crops)
@@ -111,6 +112,7 @@ for d in dirs:
     msg_data = '' # missing data within a simulation
     changes = ''  # changes to make
     errors = ''   # errors in data
+    info = ''     # basic file info
     
     if 'pDSSAT' in d:
         scenarios = dssat_scens
@@ -147,6 +149,11 @@ for d in dirs:
                 cropidx = fi['crop']; annidx = fi['annual']
                 yr0idx = fi['yr0'];   yr1idx = fi['yr1']
                 
+                # for basic file info
+                info_datmat = zeros((7,), dtype = '|S128')
+                info_datmat[:] = 'N/A'
+                info_datmat[0] = f
+                
                 # variable
                 varname = fileparts[varidx].lower()
                 if varname in vlist:
@@ -179,23 +186,13 @@ for d in dirs:
                 if fileparts[varidx] != varname:
                     fileparts[varidx] = varname # change var to lowercase
                 if fileparts[cropidx] != cropabbr[cp]:
-                    fileparts[cropidx] = cropabbr[cp] # change crop name
+                    if fileparts[cropidx] != 'ri2' or cropabbr[cp] != 'ric': # special case of second season for rice called ri2
+                        fileparts[cropidx] = cropabbr[cp] # change crop name
                 if fileparts[annidx] != 'annual':
                     fileparts[annidx] = 'annual' # change to annual
-               
-                yr0 = int(fileparts[yr0idx]); yr1 = int(fileparts[yr1idx].split('.')[0])
-                cyr0 = climyears[cm][0]; cyr1 = climyears[cm][1]
-                # [[jwe: We should probably change the following so that the filename years 
-                #   is only determined by the years in the actual files, whereas an error-type 
-                #   check is done to see if the uploaded period is less than the minimum period]]
-                if yr0 > cyr0:
-                    fileparts[yr0idx] = str(cyr0) # change start year
-                if yr1 < cyr1:
-                    fileparts[yr1idx] = str(cyr1) + '.nc4' # change end year
-                
-                newname = '_'.join(fileparts)
-                if newname != f:
-                    changes += sim2 + 'FILENAME: Change to ' + newname + '\n'
+                    
+                yr0f = int(fileparts[yr0idx]); yr1f = int(fileparts[yr1idx].split('.')[0])
+                info_datmat[5] = '[' + str(yr0f) + ', ' + str(yr1f) + ']' # save year range
                 
                 ncf = nc(subdir + sep + f) # load file
                 fvars = ncf.variables.keys()
@@ -221,6 +218,7 @@ for d in dirs:
                     errors += sim2 + 'DIMENSION: No time dimension in file\n'
                 else:
                     time = ncf.variables['time'][:]
+                    info_datmat[6] = len(time)
                 
                 if not lat is None:
                     if any(diff(lat) > 0):
@@ -243,15 +241,33 @@ for d in dirs:
                             tsplit = timev.units.split('growing seasons since ')[1].split(' ')
                             yr0, mth0, day0 = tsplit[0].split('-')[0 : 3]
                             hr0, min0, sec0 = tsplit[1].split(':')[0 : 3]
-                            if yr0 != str(cyr0) or mth0 != '01' or day0 != '01' or hr0 != '00' or min0 != '00' or sec0 != '00':
-                                changes += sim2 + 'UNITS: Change time units date to "' + str(cyr0) + '-01-01 00:00:00"\n'
+                            if mth0 != '01' or day0 != '01' or hr0 != '00' or min0 != '00' or sec0 != '00':
+                                changes += sim2 + 'UNITS: Change time units date to "' + yr0 + '-01-01 00:00:00"\n'
+                            yr0 = int(yr0); yr1 = yr0 + len(time) - 1 # check if filename is consistent
+                            if yr0f != yr0:
+                                fileparts[yr0idx] = str(yr0) # change start year
+                            if yr1f != yr1:
+                                fileparts[yr1idx] = str(yr1) + '.nc4' # change end year
+                            cyr0 = climyears[cm][0]; cyr1 = climyears[cm][1] # check year range
+                            if yr0 > cyr0:
+                                errors += sim2 + 'YEARS: Start year > ' + str(cyr0) + '\n'
+                            if yr1 < cyr1:
+                                errors += sim2 + 'YEARS: End year < ' + str(cyr1) + '\n'
                         except:
-                            changes += sim2 + 'UNITS: Change time units to "growing seasons since ' + str(cyr0) + '-01-01 00:00:00"\n'
+                            changes += sim2 + 'UNITS: Change time units to "growing seasons since "<start_year>-01-01 00:00:00"\n'
                 
-                vfile = vlist[varfullidx] + '_' + cropabbr[cp]
+                vfile = vlist[varfullidx] + '_' + fileparts[cropidx]
                 if not vfile in fvars:
                     errors += sim2 + 'VARIABLE NAME: Variable name in file is inconsistent with filename\n'
                 else:
+                    nvars = 0; vfile = '' # try to find variable name
+                    for n in fvars:
+                        if not n in ['time', 'lat', 'latitude', 'lon', 'longitude']:
+                            nvars += 1
+                            vfile = n
+                    if nvars > 1: vfile = '' # found more than one variable
+                
+                if vfile != '':
                     v = ncf.variables[vfile]
                     
                     # check dimensions
@@ -275,11 +291,10 @@ for d in dirs:
                         changes += sim2 + 'UNITS: Change units to "' + vunits[varfullidx] + '"\n'
                     
                     v = v[:] # convert to numpy array
-                    npts = v.size
+                    npts = v.size / 4 # divide by 4 to get rough approximation of land points
                     
-                    # check percent unmasked [[jwe: we should adjust this to only use npts of land and i think we need 
-                    # to use a lower fraction for maty-day and anth-day]]
-                    punmasked = 100. * (npts - v.mask.sum()) / npts
+                    # check percent unmasked
+                    punmasked = 100. * (v.size - v.mask.sum()) / npts
                     if punmasked < 10.:
                         errors += sim2 + 'COVERAGE: Spatial coverage is less than 10%\n'
                     
@@ -300,8 +315,24 @@ for d in dirs:
                     if phigher > 0.1:
                         phigher = '{:.2f}'.format(phigher)
                         errors += sim2 + 'RANGE: ' + phigher + '% of values > ' + str(vranges[varfullidx][1]) + '\n'
+                        
+                    # maximum and minimum values
+                    info_datmat[1] = str(v.max()); info_datmat[2] = str(v.min())
+                    
+                    # number of points within range
+                    info_datmat[3] = str(logical_and(v >= vranges[varfullidx][0], v <= vranges[varfullidx][1]).sum() / len(time))
+                    
+                    # variable name
+                    info_datmat[4] = vfile
                     
                 ncf.close()
+                
+                newname = '_'.join(fileparts)
+                if newname != f:
+                    changes += sim2 + 'FILENAME: Change to ' + newname + '\n'
+                
+                info += '{:80s}{:8s}{:8s}{:18s}{:15s}{:14s}{:8s}\n'.format(info_datmat[0], info_datmat[1], \
+                    info_datmat[2], info_datmat[3], info_datmat[4], info_datmat[5], info_datmat[6])
 
     # mark missing data
     cm, cp, vr, sc = where(msg_datmat)
@@ -318,7 +349,7 @@ for d in dirs:
     sumfile.write(header + '\n')
     sumfile.write('=' * len(header) + '\n')
     if errors != '':
-        sumfile.write(errors[: -1] + '\n')
+        sumfile.write(errors + '\n')
     else:
         sumfile.write('None\n\n')
 
@@ -339,14 +370,23 @@ for d in dirs:
         sumfile.write(msg_sims + '\n')
     else:
         sumfile.write('None\n\n')
+        
+    header = '{:80s}{:8}{:8}{:18}{:15}{:14}{:8}'.format('File', 'MaxVal', 'MinVal', 'GridcellsInRange', 'VarName', 'YearRange', 'NumYears')
+    sumfile.write('BASIC INFO\n\n')
+    sumfile.write(header + '\n')
+    sumfile.write('=' * len(header) + '\n')
+    if info != '':
+        sumfile.write(info + '\n')
+    else:
+        sumfile.write('None\n\n')
     
     header = '{:15s}{:15s}{:15s}{:20s}{:s}'.format('Model', 'Climate', 'Crop', 'Scenario', 'Variable')
     sumfile.write('MISSING FILES\n\n')
     sumfile.write(header + '\n')
     sumfile.write('=' * len(header) + '\n')
     if msg_data != '':
-        sumfile.write(msg_data + '\n')
+        sumfile.write(msg_data[: -1])
     else:
-        sumfile.write('None\n\n')
+        sumfile.write('None')
 
     sumfile.close()
