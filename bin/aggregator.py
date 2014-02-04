@@ -23,11 +23,11 @@ def createnc(filename, time, tunits, scens, rdata, rnames, runits, rlongnames):
     scenvar[:] = range(1, len(scens) + 1)
     scenvar.units = 'mapping'
     scenvar.long_name = ', '.join(scens)
-    f.createDimension('irr', 2) # irr
+    f.createDimension('irr', 3) # irr
     irrvar = f.createVariable('irr', 'i4', ('irr',))
-    irrvar[:] = range(1, 3)
+    irrvar[:] = range(1, 4)
     irrvar.units = 'mapping'
-    irrvar.long_name = 'ir, rf'
+    irrvar.long_name = 'ir, rf, sum'
     for i in range(len(rnames)): # index variables
         rname = rnames[i] + '_index'
         f.createDimension(rname, len(rdata[i]))
@@ -253,8 +253,8 @@ for i in range(nfiles): # iterate over subdirectories
     for j in range(nmasks):
         sz = audata[j].size
         adataresize[j] = resize(adata[j], (nt, nlats, nlons)) # resize maps
-        averages[j] = fillv * ones((nv, sz, nt, ns, 2)) # preallocate
-        areas[j] = zeros((sz, nt, ns, 2))
+        averages[j] = fillv * ones((nv, sz, nt, ns, 3)) # preallocate
+        areas[j] = zeros((sz, nt, ns, 3))
 
     vunits = [''] * nv
     for j in range(len(scens_full)): # iterate over scenarios
@@ -324,12 +324,17 @@ for i in range(nfiles): # iterate over subdirectories
     for j in range(nmasks):
         name = anames[j]
         dims = ('time', 'scen', 'irr')
+        areas[j][:, :, :, 2] = areas[j][:, :, :, 0] + areas[j][:, :, :, 1] # sum area
         if name != 'global': dims = (name + '_index',) + dims
         areav = f.createVariable('area_' + name, 'f4', dims, zlib = True, complevel = 9)
         areav[:] = areas[j].squeeze()
         areav.units = 'hectares'
         areav.long_name = name + ' harvested area'
+        areamasked = masked_where(areas[j][:, :, :, 2] == 0, areas[j][:, :, :, 2]) # prevent divide by zero errors
         for k in range(nv):
+            averages[j][k, :, :, :, 2] = (areas[j][:, :, :, 0] * averages[j][k, :, :, :, 0] + \
+                                          areas[j][:, :, :, 1] * averages[j][k, :, :, :, 1]) / \
+                                          areamasked # area average
             avev = f.createVariable(vars[k] + '_' + name, 'f4', dims, fill_value = fillv, zlib = True, complevel = 9)
             avev[:] = averages[j][k].squeeze()
             avev.units = vunits[k]
