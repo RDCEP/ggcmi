@@ -8,7 +8,7 @@ from optparse import OptionParser
 from netCDF4 import Dataset as nc
 from os.path import sep, exists, getmtime
 from numpy.ma import masked_array, unique, masked_where
-from numpy import pi, zeros, ones, cos, resize, where, ceil, double
+from numpy import pi, zeros, ones, cos, resize, where, ceil, double, isnan, logical_not
 
 # HELPER FUNCTION
 def createnc(filename, time, tunits, scens, rdata, rnames, runits, rlongnames):
@@ -95,6 +95,9 @@ parser.add_option("-t", "--tsfile", dest = "tsfile", default = "timestamps.txt",
 parser.add_option("-o", "--outdir", dest = "outdir", default = "", type = "string",
                   help = "Comma-separated list of output directories to save results for different aggregation masks")
 options, args = parser.parse_args()
+
+print 'RUNNING AGGREGATOR'
+print '=================='
 
 fillv = 1e20 # some constants
 yieldthr1 = 0.1 # t/ha
@@ -248,13 +251,20 @@ for i in range(nfiles): # iterate over subdirectories
 
     createnc(filename, time, tunits, scens, audata[: -1], anames[: -1], aunits[: -1], alongnames[: -1]) # create nc file
 
+    print 'Preallocating . . .'
+    t0 = tm.time()
     averages = [0] * nmasks; areas = [0] * nmasks # final averages and areas
-    adataresize = [0] * nmasks
+    aselect = [0] * nmasks; vartmp = [0] * nmasks
     for j in range(nmasks):
         sz = audata[j].size
-        adataresize[j] = resize(adata[j], (nt, nlats, nlons)) # resize maps
-        averages[j] = fillv * ones((nv, sz, nt, ns, 3)) # preallocate
+        averages[j] = masked_array(zeros((nv, sz, nt, ns, 3))) # preallocate
+        averages[j].mask = ones(averages[j].shape) # all points are masked
         areas[j] = zeros((sz, nt, ns, 3))
+        vartmp[j] = zeros((sz, nlats, nlons)) # for storing temporary variable
+        aselect[j] = zeros((sz, nlats, nlons), dtype = bool)
+        for k in range(sz):
+            aselect[j][k] = adata[j] == audata[j][k]
+    print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
 
     vunits = [''] * nv
     for j in range(len(scens_full)): # iterate over scenarios
@@ -269,6 +279,8 @@ for i in range(nfiles): # iterate over subdirectories
 
         weight = landmasksir[cidx] if not iidx else landmasksrf[cidx] # weights
 
+        print 'Loading yield mask . . .'
+        t0 = tm.time()
         yieldfile = [f for f in files if re.search(scen_irr + '_yield', f)][0] # pull yield mask
         yf = nc(sep.join([rootdir, dir, yieldfile]))
         yvars = yf.variables.keys()
@@ -276,19 +288,17 @@ for i in range(nfiles): # iterate over subdirectories
         yieldvar = yf.variables[yvars[yidx]][:]
         yieldvar = masked_where(yieldvar < yieldthr1, yieldvar) # mask yields based on thresholds
         yieldvar = masked_where(yieldvar > yieldthr2, yieldvar)
-        yieldmask = yieldvar.mask
+        yieldmask = logical_not(yieldvar.mask)
         yf.close()
-
-        aselect = [0] * nmasks; vartmp = [0] * nmasks
+        print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
+        
+        print 'Computing areas . . .'
+        t0 = tm.time()
         for k in range(nmasks):
-            sz = audata[k].size
-            acommon = masked_where(yieldmask, adataresize[k]) # mask
-            vartmp[k] = zeros((sz, nlats, nlons)) # for storing temporary variable
-            aselect[k] = zeros((sz, nt, nlats, nlons), dtype = bool)
-            for m in range(sz):
-                aselect[k][m] = acommon == audata[k][m]
-                areas[k][m, :, sidx, iidx] = (weight * area * aselect[k][m]).sum(axis = 2).sum(axis = 1)
-
+            for m in range(audata[k].size):
+                areas[k][m, :, sidx, iidx] = (weight * area * aselect[k][m] * yieldmask).sum(axis = 2).sum(axis = 1)
+        print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
+        
         for k in range(nv): # iterate over variables
             t0 = tm.time()
             
@@ -304,22 +314,26 @@ for i in range(nfiles): # iterate over subdirectories
             var = vf.variables[fvars[vidx]]
             if not j: vunits[k] = var.units if 'units' in var.ncattrs() else ''
             var = var[:]
+            var[isnan(var)] = 0. # change NaN values to zero
             vf.close()
-                       
+
             print '  Processing aggregration masks . . .'
             for m in range(nmasks):
                 print '    ' + anames[m] + ' . . .'
+                ridx, latidx, lonidx = where(aselect[m])
                 for t in range(nt):
-                    ridx = areas[m][:, t, sidx, iidx] > 0.
-                    if ridx.sum():
-                        vartmp[m][:] = 0.
-                        idx1, idx2, idx3 = where(aselect[m][:, t, :, :])
-			vartmp[m][idx1, idx2, idx3] = var[t, idx2, idx3] * weight[idx2, idx3] * area[idx2, idx3] * aselect[m][idx1, t, idx2, idx3]        
+                    valididx = areas[m][:, t, sidx, iidx] > 0.
+                    if valididx.sum():
+                        vartmp[m][:] = 0. # reset
+                        vartmp[m][ridx, latidx, lonidx] = var[t, latidx, lonidx] * weight[latidx, lonidx] * area[latidx, lonidx] * yieldmask[t, latidx, lonidx] * aselect[m][ridx, latidx, lonidx]
                         vsum = vartmp[m].sum(axis = 2).sum(axis = 1)
-                        averages[m][k, ridx, t, sidx, iidx] = vsum[ridx] / areas[m][ridx, t, sidx, iidx]
+                        averages[m][k, valididx, t, sidx, iidx] = vsum[valididx] / areas[m][valididx, t, sidx, iidx]
+            print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
 
-            print '  Time to process =', tm.time() - t0, 'seconds . . .'
-
+    # INSERT FOR DEBUGGING
+    # import cPickle as pickle
+    
+    print 'Writing file . . .'
     f = nc(filename, 'a', format = 'NETCDF4_CLASSIC') # append variables
     for j in range(nmasks):
         name = anames[j]
@@ -331,14 +345,22 @@ for i in range(nfiles): # iterate over subdirectories
         areav.units = 'hectares'
         areav.long_name = name + ' harvested area'
         areamasked = masked_where(areas[j][:, :, :, 2] == 0, areas[j][:, :, :, 2]) # prevent divide by zero errors
+        
+        # INSERT FOR DEBUGGING
+        # pickle.dump(areas[j], open('areas_mask' + str(j + 1) + '_new.p', 'w'))
+        
         for k in range(nv):
             averages[j][k, :, :, :, 2] = (areas[j][:, :, :, 0] * averages[j][k, :, :, :, 0] + \
                                           areas[j][:, :, :, 1] * averages[j][k, :, :, :, 1]) / \
                                           areamasked # area average
             avev = f.createVariable(vars[k] + '_' + name, 'f4', dims, fill_value = fillv, zlib = True, complevel = 9)
-            avev[:] = averages[j][k].squeeze()
+            avev[:] = averages[j][k].squeeze()            
             avev.units = vunits[k]
             avev.long_name = 'average ' + name + ' ' + vars[k]
+        
+        # INSERT FOR DEBUGGING
+        # pickle.dump(averages[j], open('averages_var' + str(k + 1) + '_mask' + str(j + 1) + '_new.p', 'w'))
+        
     f.close()
 
 tsfile.close() # close timestamps file
