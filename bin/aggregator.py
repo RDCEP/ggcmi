@@ -347,7 +347,7 @@ for i in range(nfiles): # iterate over subdirectories
         areamasked = masked_where(areas[j][:, :, :, 2] == 0, areas[j][:, :, :, 2]) # prevent divide by zero errors
         
         # INSERT FOR DEBUGGING
-        # pickle.dump(areas[j], open('areas_mask' + str(j + 1) + '_new.p', 'w'))
+        # pickle.dump(areas[j], open('areas_mask' + str(j + 1) + '.p', 'w'))
         
         for k in range(nv):
             averages[j][k, :, :, :, 2] = (areas[j][:, :, :, 0] * averages[j][k, :, :, :, 0] + \
@@ -359,7 +359,7 @@ for i in range(nfiles): # iterate over subdirectories
             avev.long_name = 'average ' + name + ' ' + vars[k]
         
         # INSERT FOR DEBUGGING
-        # pickle.dump(averages[j], open('averages_var' + str(k + 1) + '_mask' + str(j + 1) + '_new.p', 'w'))
+        # pickle.dump(averages[j], open('averages_mask' + str(j + 1) + '.p', 'w'))
         
     f.close()
 
