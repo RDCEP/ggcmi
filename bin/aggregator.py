@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 # import modules
-import sys, re, time as tm
+import sys, re, random, time as tm
 from os import listdir
 from datetime import datetime
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
-from os.path import sep, exists, getmtime
+from os.path import sep, getmtime, isfile, isdir
 from numpy.ma import masked_array, unique, masked_where
 from numpy import pi, zeros, ones, cos, resize, where, ceil, double, isnan, logical_not
 
-# HELPER FUNCTION
+# HELPER FUNCTIONS
 def createnc(filename, time, tunits, scens, rdata, rnames, runits, rlongnames):
     f = nc(filename, 'w', format = 'NETCDF4_CLASSIC') # create file
     f.createDimension('time', len(time)) # time
@@ -36,6 +36,12 @@ def createnc(filename, time, tunits, scens, rdata, rnames, runits, rlongnames):
         rvar.units = runits[i]
         rvar.long_name = rlongnames[i]
     f.close() # close file
+def filterfiles(listing):
+    files = []
+    for l in listing:
+        if isfile(l):
+            files.append(l)
+    return files
 
 class AggMask(object):
     def __init__(self, filename):
@@ -108,7 +114,8 @@ if rootdir[-1] == sep: rootdir = rootdir[: -1] # remove final separator
 
 if options.mod == '*': # model
     models = listdir(rootdir) # process all models
-    if 'upload_stats' in models: models.remove('upload_stats') 
+    if 'upload_stats' in models: models.remove('upload_stats')
+    if 'aggregations' in models: models.remove('aggregations')
 else:
     models = options.mod.split(',') # model, climate, and crop names
 
@@ -129,10 +136,18 @@ for i in models:
             crops = options.crop.split(',')
         for k in crops:
             d = sep.join([i, j, k])
-            if exists(rootdir + sep + d) and len(listdir(rootdir + sep + d)):
-                for m in range(len(aggmasks)):
-                    totfiles.append([d, aggmasks[m], aggmaskdirs[m]])
+            dname = rootdir + sep + d
+            if isdir(dname): # if directory
+                listing = [dname + sep + l for l in listdir(dname)]
+                files = filterfiles(listing)
+                if len(files): # if contains files
+                    for m in range(len(aggmasks)):
+                        totfiles.append([d, aggmasks[m], aggmaskdirs[m]])
 nfiles = len(totfiles)
+
+# shuffle directories to distribute large jobs
+random.seed(0)
+random.shuffle(totfiles)
 
 batch = options.batch # find out start and end indices for batch
 numbatches = options.num_batches
@@ -147,7 +162,7 @@ if si >= nfiles: # no work for processor to do
 totfiles = totfiles[si : ei] # select files for batch
 nfiles = len(totfiles)
 
-uqcrops = list(set([f[0].split(sep)[2].title() for f in totfiles])) # find unique crops (capitalize first letters)
+uqcrops = list(set([f[0].split(sep)[2].capitalize() for f in totfiles])) # find unique crops (capitalize first letters)
 ncrops = len(uqcrops)
 
 landmasksir = [0] * ncrops # load weight masks
@@ -201,7 +216,7 @@ for i in range(nfiles): # iterate over subdirectories
             print 'Timstamp has not changed. Skipping directory . . .'
             continue
     
-    cidx = uqcrops.index(dir.split(sep)[2].title()) # crop
+    cidx = uqcrops.index(dir.split(sep)[2].capitalize()) # crop
     
     aidx = uqaggmasks.index(aggmask) # aggregration mask
     amask = aggmaskobjs[aidx]
@@ -212,7 +227,12 @@ for i in range(nfiles): # iterate over subdirectories
     audata = amask.udata()
     nmasks = len(anames)
 
-    files = listdir(rootdir + sep + dir) # get files
+    dname = rootdir + sep + dir
+    files = listdir(dname)
+    fileslist = filterfiles([dname + sep + l for l in files]) # get files
+    if not len(fileslist):
+        print 'No files found. Skipping directory . . .'
+        continue
     
     vars = []; scens = []; scens_full = [] # get variables and scenarios
     for j in range(len(files)):
@@ -240,7 +260,7 @@ for i in range(nfiles): # iterate over subdirectories
 
     nv = len(vars)  # number of variables
     nt = len(time)  # number of times
-    ns = len(scens) # number of scenarios    
+    ns = len(scens) # number of scenarios  
 
     filename = files[0].split('_') # use first file to get filename
     if len(filename) == 11: filename.remove(filename[3]) # remove the extra label for pt
