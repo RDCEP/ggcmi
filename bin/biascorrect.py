@@ -241,7 +241,7 @@ class AggBiasCorrectedFile(object):
         # create time
         f.createDimension('time', len(time))
         timevar = f.createVariable('time', 'i4', ('time',))
-        timevar[:] = time
+        timevar[:] = time - time[0]
         timevar.units = 'years since {:d}-01-01'.format(int(time[0]))
         timevar.long_name = 'time'
         
