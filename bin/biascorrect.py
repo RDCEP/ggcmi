@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 # import modules
-import warnings
 import sys, re, abc
 import numpy.ma as ma
 from os import listdir
@@ -11,26 +10,33 @@ from os.path import split, splitext, sep
 from scipy.stats import scoreatpercentile
 from numpy import ceil, double, intersect1d, where, sqrt, polyfit, diff, nan, isnan, arange, zeros, ones
 
-# warnings.filterwarnings('error')
-
 # DETRENDER CLASSES
 class Detrender(object):
     @abc.abstractmethod
     def detrend(self, y): return
+    def polytrend(self, y, order):
+        ly = len(y)
+        x = arange(1, 1 + ly)
+        if ma.isMaskedArray(y):
+            mask = y.mask
+            line = ma.masked_array(zeros(ly), mask = mask)
+            if not mask.all():
+                x2 = x[~mask]
+                y2 = y[~mask]
+                coef = polyfit(x2, y2, order)
+                for i in range(order + 1):
+                    line[~mask] += coef[i] * x2 ** (order - i)
+        else:
+            coef = polyfit(x, y, order)
+            for i in range(order + 1):
+                line += coef[i] * x ** (order - i)
+        return line
 class NoDetrender(Detrender):
     def detrend(self, y): return y, None # no trend line
-class LinDetrender(Detrender):
+class PolyDetrender(Detrender):
+    def __init__(self, order): self.order = order
     def detrend(self, y):
-        x = arange(1, 1 + len(y))
-        coef = polyfit(x, y, 1)
-        line = coef[0] * x + coef[1]
-        dy = y - line
-        return dy, line
-class QuadDetrender(Detrender):
-    def detrend(self, y):
-        x = arange(1, 1 + len(y))
-        coef = polyfit(x, y, 2)
-        line = coef[0] * x ** 2 + coef[1] * x + coef[2]
+        line = self.polytrend(y, self.order)
         dy = y - line
         return dy, line
 class MovingAveDetrender(Detrender):
@@ -60,8 +66,7 @@ class MovingAveDetrender(Detrender):
         return dave
 class FFDDetrender(Detrender):
     def detrend(self, y):
-        dy = y.copy()
-        dy[:] = nan
+        dy = y.copy(); dy[:] = nan
         dy[1 :] = diff(y) / y[: -1]
         dy = ma.masked_where(isnan(dy), dy)
         line = None # no trend line
@@ -70,10 +75,8 @@ class FFDRemoveDetrender(Detrender):
     def detrend(self, y):
         dy = y.copy(); dy[:] = nan
         line = y.copy(); line[:] = nan
-        x = arange(2, 1 + len(y))
         ffd = diff(y) / y[: -1]
-        coef = polyfit(x, ffd, 1)
-        line[1 :] = coef[0] * x + coef[1]
+        line[1 :] = self.polytrend(ffd, 1)
         dy[1 :] = ffd - line[1 :]
         dy = ma.masked_where(isnan(dy), dy)
         line = ma.masked_where(isnan(line), line)
@@ -83,7 +86,7 @@ class DetrenderWrapper(Detrender):
         if method == 'none':
             self.dt = NoDetrender()
         elif method == 'lin':
-            self.dt = LinDetrender()
+            self.dt = PolyDetrender(1)
         elif method == 'ffd':
             self.dt = FFDDetrender()
         else:
@@ -142,25 +145,20 @@ class SumRetrender(Retrender):
     def retrend(self, T, R, o): return T + R
 class FFDLeftRetrender(Retrender):
     def retrend(self, T, R, o):
-        r = zeros((len(T),))
+        r = T.copy()
         r[0] = o[0] # initial condition = leftmost point
-        # print r[0]
-        # print T
-        # print R
         for i in range(1, len(r)):
-            # try:
-                # print i, r[i-1], T[i], R[i]
-                r[i] = r[i - 1] * (1. + T[i] + R[i])
-            # except:
-            #     print T
-            #     print R
+            r[i] = r[i - 1] * (1. + T[i] + R[i])
         return r
 class FFDRightRetrender(Retrender):
     def retrend(self, T, R, o):
-        r = zeros((len(T),))
+        r = T.copy()
         r[-1] = o[-1] # initial condition = rightmost point
         for i in range(-1, -len(r), -1):
-            r[i - 1] = r[i] / (1. + T[i] + R[i])
+            if T.mask[i] or R.mask[i]:
+                r.mask[i - 1] = True # prevent division by masked
+            else:
+                r[i - 1] = r[i] / (1. + T[i] + R[i])
         return r
 
 # WRAPPER CLASS
@@ -182,11 +180,11 @@ class BiasCorrecter(object):
                 self.retrender = FFDRightRetrender()
         else:
             self.retrender = SumRetrender()
-            self.detrenderSim = LinDetrender()
+            self.detrenderSim = PolyDetrender(1)
             if detrend_method == 'lin':
-                self.detrenderObs = LinDetrender()
+                self.detrenderObs = PolyDetrender(1)
             elif detrend_method == 'quad':
-                self.detrenderObs = QuadDetrender()
+                self.detrenderObs = PolyDetrender(2)
             elif detrend_method == 'moving-ave':
                 self.detrenderObs = MovingAveDetrender()
             else:
@@ -200,18 +198,7 @@ class BiasCorrecter(object):
         # detrend simualtions
         sdT = self.detrenderSim.detrend(sim)[0]
 
-        if isnan(odT).sum() == len(odT):
-            print odT
-            print obs
-            raise Exception('blah')
-        if isnan(sdT).sum() == len(sdT):
-            print sdT
-            print sim
-            raise Exception('blah2')
-
         # residuals
-        # print 'sdT =', sdT
-        # print 'odT =', odT
         if sdT.mask.all() or odT.mask.all(): # if either is totally masked
             R = ma.masked_array(zeros((len(T),)), mask = ones((len(T),)))
             yhat = R.copy()
@@ -418,7 +405,6 @@ for f in files[si : ei]:
     for c in range(len(corr_methods)):
         # iterate over correction methods
         bc = BiasCorrecter(corr_methods[c])
-        
         for g in range(ngadm):
             # iterate over countries
             yref = yield_ref_common[g]
@@ -430,9 +416,6 @@ for f in files[si : ei]:
                 ysim = yield_sim_common[g, :, s]
                 if not ysim.mask.all(): # if not blank
                     # compute correction
-                    # print corr_methods[c]
-                    # print 'ysim =', ysim
-                    # print 'yref =', yref
                     yhat, T, R = bc.correct(ysim, yref)
                     # save
                     yield_biascorr[g, :, s, c] = R
