@@ -218,11 +218,6 @@ for i in range(nfiles): # iterate over subdirectories
 
     filename = options.outdir + sep + splitext(bcfile)[0] + '.rescaled.nc4' # create netCDF4 file
     createnc(filename, time - time[0], lat, lon, scen, irr, tunits)
-    print 'ntime=', len(time)
-    print 'nlats=', len(lat)
-    print 'nlons=', len(lon)
-    print 'nscen=', len(scen)
-    print 'nirr=', len(irr)
 
     areair = resize(area * landmasksir[cidx], (nt, nlats, nlons)) # get areas
     areair = reshape(repeat(areair, nscen), (nt, nlats, nlons, nscen))
@@ -285,7 +280,6 @@ for i in range(nfiles): # iterate over subdirectories
 
         with nc(filename, 'a') as f: # append variables
             vvar = f.createVariable(v + '_' + cropname, 'f4', ('time', 'lat', 'lon', 'scen', 'irr',), zlib = True, complevel = 9, fill_value = 1e20)
-            print var.shape
             vvar[:] = var
             vvar.units = funits
             vvar.long_name = flongname
