@@ -20,8 +20,10 @@ parser.add_option("-r", "--irr", dest = "irr", default = "", type = "string",
                   help = "Name of irrigation type to plot")
 parser.add_option("-v", "--var", dest = "var", default = "", type = "string",
                   help = "Variable to plot")
-parser.add_option("-l", "--limits", dest = "limits", default = "", type = "string",
-                  help = "Plot limits (default = blank)")
+parser.add_option("-l", "--maplimits", dest = "maplimits", default = "", type = "string",
+                  help = "Comma-separated of lat0,lat1,lon0,lon1 limits (default = blank)")
+parser.add_option("-c", "--cblimits", dest = "cblimits", default = "", type = "string",
+                  help = "Comma-separated of colorbar limits (default = blank)")
 parser.add_option("-o", "--output", dest = "output", default = "", type = "string",
                   help = "Output filename", metavar = "FILE")
 options, args = parser.parse_args()
@@ -35,13 +37,13 @@ with nc(options.input) as f:
     irr = f.variables['irr'].long_name.split(', ')
     time = f.variables['time'][:]
     tunits = f.variables['time'].units
-    var = f.variables[options.var + '_' + crop][:]
-    varunits = f.variables[options.var + '_' + crop].units
+    var = f.variables[options.var + '_' + crop]
+    varunits = var.units if 'units' in var.ncattrs() else ''
+    var = var[:]
 
 scen_idx = scen.index(options.scen)
 irr_idx = irr.index(options.irr)
 var = var[:, :, :, scen_idx, irr_idx]
-
 time += int(re.findall(r'\d+', tunits)[0])
 
 if options.time == 'all':
@@ -59,24 +61,30 @@ else:
     else:
         raise Exception('Unrecognized -t option')
 
-# get plot limits
-if options.limits != '':
-    pmin, pmax = [double(l) for l in options.limits.split(',')]
+# get latitude limits
+if options.maplimits != '':
+    lat0, lat1, lon0, lon1 = [double(l) for l in options.maplimits.split(',')]
+else:
+    lat0 = -90
+    lat1 = 90
+# get colorbar limits
+if options.cblimits != '':
+    pmin, pmax = [double(l) for l in options.cblimits.split(',')]
 else:
     pmin = var.min()
     pmax = var.max()
 
 # plot
-m = Basemap(llcrnrlon = -180, llcrnrlat = -90, urcrnrlon = 180, urcrnrlat = 90, \
+m = Basemap(llcrnrlon = lon0, llcrnrlat = lat0, urcrnrlon = lon1, urcrnrlat = lat1, \
             resolution = 'c', projection = 'cyl')
 lons, lats = meshgrid(lon, lat)
 x, y = m(lons, lats)
-cs = m.pcolor(x, y, var, vmin = pmin, vmax = pmax, cmap = matplotlib.cm.RdBu)
+cs = m.pcolor(x, y, var, vmin = pmin, vmax = pmax, cmap = matplotlib.cm.YlGn)
 cbar = m.colorbar(cs, location = 'right')
-m.drawcoastlines(zorder = 10)
-m.drawstates()
+m.drawcoastlines()
+m.drawstates(linewidth = 0.2)
 m.drawmapboundary()
-m.drawcountries(zorder = 10)
+m.drawcountries(linewidth = 0.2)
 m.drawparallels(arange(90, -110, -30), labels = [1, 0, 0, 0])
 m.drawmeridians(arange(-180, 180, 60), labels = [0, 0, 0, 1])
 plt.title(options.var + ' (' + varunits + '), ' + options.scen + '-' + options.irr + ', ' + years_str)

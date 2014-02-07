@@ -26,11 +26,11 @@ def filterfiles(listing):
             files.append(l)
     return files
 def long2short(cropin):
-    long_list = ['maize', 'wheat', 'soybeans', 'rice', 'sorghum', 'millet', \
-                 'managed_grass', 'sugarcane', 'barley', '', 'rapeseed', \
+    long_list = ['maize', 'wheat', 'soy', 'rice', 'sorghum', 'millet', \
+                 'managed_grass', 'sugarcane', 'barley', 'rapeseed', \
                  'rye', 'sugar_beet']
     short_list = ['mai', 'whe', 'soy', 'ric', 'sor', 'mil', \
-                  'mgr', 'sug', 'bar', 'oat', 'rap', \
+                  'mgr', 'sug', 'bar', 'rap', \
                   'rye', 'sgb']
     cropout = short_list[long_list.index(cropin)] if cropin in long_list else ''
     return cropout
@@ -226,15 +226,20 @@ for i in range(nfiles): # iterate over subdirectories
 
     areatot = areair + arearf # get total area
     areatot = ma.masked_where(areatot == 0, areatot)
-        
+    
+    var = ma.zeros((nt, nlats, nlons, nscen, nirr)) # masked array
     for v in vars: # iterate over variables
-        var = ma.zeros((nt, nlats, nlons, nscen, nirr)) # masked array
+        var[:] = 0. # reset
         var.mask = ones(var.shape) # mask all
         
         for s in itertools.product(scen, irr[: 2]): # iterate over scenarios
             sidx = scen.index(s[0])
             iidx = irr.index(s[1])
-            scen_irr = s[0] + '_' + s[1]
+            scenname = s[0].split('_')
+            if len(scenname) == 1:
+                scen_irr = scenname[0] + '_' + s[1]
+            else:
+                scen_irr = '_'.join([scenname[0], s[1], scenname[1]])
 
             varfile = [f for f in files if re.search(scen_irr + '_' + v, f)] # load file
             if not len(varfile): continue
