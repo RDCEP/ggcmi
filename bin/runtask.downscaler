@@ -1,0 +1,2 @@
+#!/bin/bash
+/project/joshuaelliott/ggcmi/bin/downscaler.py -b $1 -n 10 -d /project/joshuaelliott/ggcmi/AgMIP.output -m pDSSAT -w AgMERRA -c maize -i /project/joshuaelliott/ggcmi/masks/weight/landuse.ir.nc4 -r /project/joshuaelliott/ggcmi/masks/weight/landuse.rf.nc4 -v yield,aet -o /project/joshuaelliott/ggcmi/aggregations/rescaled --corrdir /project/joshuaelliott/ggcmi/aggregations/biascorr --mask /project/joshuaelliott/ggcmi/masks/aggr/gadm.mask.nc4 --corrmethod "quad VS"
