@@ -15,13 +15,13 @@ parser.add_option("-i", "--input", dest = "input", default = "", type = "string"
 parser.add_option("-t", "--time", dest = "time", default = "", type = "string",
                   help = "Time to plot ('all' = all years)")
 parser.add_option("-s", "--scen", dest = "scen", default = "", type = "string",
-                  help = "Scenario to plot")
+                  help = "Name of scenario to plot")
 parser.add_option("-r", "--irr", dest = "irr", default = "", type = "string",
-                  help = "Irrigation to plot")
+                  help = "Name of irrigation type to plot")
 parser.add_option("-v", "--var", dest = "var", default = "", type = "string",
                   help = "Variable to plot")
 parser.add_option("-l", "--limits", dest = "limits", default = "", type = "string",
-                  help = "Plot limits")
+                  help = "Plot limits (default = blank)")
 parser.add_option("-o", "--output", dest = "output", default = "", type = "string",
                   help = "Output filename", metavar = "FILE")
 options, args = parser.parse_args()
@@ -79,7 +79,7 @@ m.drawmapboundary()
 m.drawcountries(zorder = 10)
 m.drawparallels(arange(90, -110, -30), labels = [1, 0, 0, 0])
 m.drawmeridians(arange(-180, 180, 60), labels = [0, 0, 0, 1])
-plt.title(options.var + ' (' + varunits + '), ' + years_str)
+plt.title(options.var + ' (' + varunits + '), ' + options.scen + '-' + options.irr + ', ' + years_str)
 
 # save
 plt.savefig(options.output)
