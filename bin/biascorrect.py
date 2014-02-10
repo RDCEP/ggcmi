@@ -23,9 +23,12 @@ class Detrender(object):
             if not mask.all():
                 x2 = x[~mask]
                 y2 = y[~mask]
-                coef = polyfit(x2, y2, order)
-                for i in range(order + 1):
-                    line[~mask] += coef[i] * x2 ** (order - i)
+                if len(x2) == 1: # single point
+                    line[~mask] = y2
+                else:
+                    coef = polyfit(x2, y2, order)
+                    for i in range(order + 1):
+                        line[~mask] += coef[i] * x2 ** (order - i)
         else:
             coef = polyfit(x, y, order)
             for i in range(order + 1):
@@ -100,7 +103,8 @@ class Transformer(object):
 class VSTransformer(Transformer):
     def transform(self, p1, p2):
         p1 -= p1.mean() # decenter
-        p1 *= sqrt(p2.var() / p1.var()) # scale
+        p1v = p1.var()
+        if p1v: p1 *= sqrt(p2.var() / p1v) # scale
         p1 += p2.mean() - p1.mean() # shift
         return p1
 class QMTransformer(Transformer):
@@ -119,16 +123,16 @@ class QMTransformer(Transformer):
         q95 = self.__percentile(q2, 95)
         
         p25 = self.__percentile(p2, 25) # 25th
-        p2[p2 < 0] *= q25 / p25
+        if p25: p2[p2 < 0] *= q25 / p25
         
         p75 = self.__percentile(p2, 75) # 75th
-        p2[p2 > 0] *= q75 / p75
+        if p75: p2[p2 > 0] *= q75 / p75
 
         p5 = self.__percentile(p2, 5) # 5th
-        p2[p2 < q25] *= q5 / p5
+        if p5: p2[p2 < q25] *= q5 / p5
         
         p95 = self.__percentile(p2, 95) # 95th
-        p2[p2 > q75] *= q95 / p95
+        if p95: p2[p2 > q75] *= q95 / p95
 
         p2 += q2mean - p2.mean() # reshift
         
@@ -190,26 +194,34 @@ class BiasCorrecter(object):
             else:
                 raise Exception('Unrecognized detrend method')
     
-    def correct(self, sim, obs):
-        """ Corrects simulated sequence sim using observations obs """
+    def correct(self, sim, obs, tsim, tobs):
+        """ Corrects simulated sequence sim using observations obs,
+            with tsim and tobs arrays of years """
+        # get common times
+        time = intersect1d(tsim, tobs)
+        if not len(time): raise Exception('No common times')
+        
         # detrend observations
         odT, T = self.detrenderObs.detrend(obs)
+        odT = toverlap(odT, tobs, time); T = toverlap(T, tobs, time)
         
-        # detrend simualtions
+        # detrend simulations
         sdT = self.detrenderSim.detrend(sim)[0]
+        sdT = toverlap(sdT, tsim, time)
 
         # residuals
         if sdT.mask.all() or odT.mask.all(): # if either is totally masked
-            R = ma.masked_array(zeros((len(T),)), mask = ones((len(T),)))
+            R = ma.masked_array(zeros((ntime,)), mask = ones((ntime,)))
             yhat = R.copy()
         else:
             # transform distribution
             R = self.transformer.transform(sdT, odT)
             
             # combine
-            yhat = self.retrender.retrend(T, R, obs)
+            obs_trim = toverlap(obs, tobs, time)
+            yhat = self.retrender.retrend(T, R, obs_trim)
         
-        return yhat, T, R
+        return yhat, R
 
 # AGGREGATED BIAS-CORRECTED FILE CLASS
 class AggBiasCorrectedFile(object):
@@ -265,7 +277,7 @@ class AggBiasCorrectedFile(object):
         yieldvar.long_name = longname
         f.close()
 
-# HELPER FUNCTION
+# HELPER FUNCTIONS
 def short2long(cropin):
     # convert GGCMI crop short name to FAOSTAT full crop name, if available
     short_list = ['mai', 'whe', 'soy', 'ric', 'sor', 'mil', \
@@ -276,6 +288,13 @@ def short2long(cropin):
                  '', 'sugar_beet']
     cropout = long_list[short_list.index(cropin)] if cropin in short_list else ''
     return cropout
+def toverlap(x, tx, tref):
+    ntime = len(tref)
+    xref = ma.masked_array(zeros((ntime,)), mask = ones((ntime,)))
+    for t in range(ntime):
+        tidx = where(tx == tref[t])[0][0]
+        xref[t] = x[tidx]
+    return xref
 
 # ==================
 # SCRIPT STARTS HERE
@@ -362,40 +381,40 @@ for f in files[si : ei]:
     yr0_in = int(re.findall(r'\d+', time_in_units)[0])
     time_in = time_in + yr0_in - 1
     
-    # find common times and gadm indices
+    # find common gadm indices
     gadm = intersect1d(gadm_in, gadm_ref)
     ngadm = len(gadm)
     if not ngadm:
         print 'No common gadm indices. Exiting . . .'
         sys.exit(1)
-    time = intersect1d(time_in, time_ref)
-    ntime = len(time)
-    if not ntime:
-        print 'No common times. Exiting . . .'
-        sys.exit(1)
     nscen = len(scen)
-    yield_sim_common = ma.ones((ngadm, ntime, nscen), fill_value = 1e20)
-    yield_ref_common = ma.ones((ngadm, ntime,), fill_value = 1e20)
+    yield_sim_common = ma.ones((ngadm, len(time_in), nscen), fill_value = 1e20)
+    yield_ref_common = ma.ones((ngadm, len(time_ref),), fill_value = 1e20)
     for i in range(ngadm):
-        for j in range(ntime):
-            gidx_in = where(gadm_in == gadm[i])[0][0]
-            tidx_in = where(time_in == time[j])[0][0]
-            yield_sim_common[i, j] = yield_in[gidx_in, tidx_in]
-            gidx_ref = where(gadm_ref == gadm[i])[0][0]
-            tidx_ref = where(time_ref == time[j])[0][0]
-            yield_ref_common[i, j] = yield_ref[gidx_ref, tidx_ref]
+        gidx_in = where(gadm_in == gadm[i])[0][0]
+        yield_sim_common[i] = yield_in[gidx_in]
+        gidx_ref = where(gadm_ref == gadm[i])[0][0]
+        yield_ref_common[i] = yield_ref[gidx_ref]
     
     detrend_methods = ['none', 'lin', 'ffd']
     corr_methods = ['lin VS', 'quad VS', 'moving-ave VS', 'ffd-left VS', 'ffd-right VS', \
                     'lin QM', 'quad QM', 'moving-ave QM', 'ffd-left QM', 'ffd-right QM']
     
+    # get common times
+    time = intersect1d(time_in, time_ref)
+    ntime = len(time)
+    
     # detrend yield
-    yield_sim = ma.zeros((ngadm, ntime, nscen, len(detrend_methods))) 
+    yield_sim = ma.zeros((ngadm, ntime, nscen, len(detrend_methods)))
     for d in range(len(detrend_methods)):
         dt = DetrenderWrapper(detrend_methods[d])
         for g in range(ngadm):
             for s in range(nscen):
-                yield_sim[g, :, s, d] = dt.detrend(yield_sim_common[g, :, s])[0]
+                yield_dt = dt.detrend(yield_sim_common[g, :, s])[0]
+                yield_sim[g, :, s, d] = toverlap(yield_dt, time_in, time)
+                if yield_sim[g, :, s, d].mask[-1]:
+                    yield_sim[g, 1 :, s, d] = yield_sim[g, : -1, s, d] # shift by one
+                    yield_sim[g, 0, s, d] = ma.masked
         
     # correct yield
     yield_biascorr = ma.zeros((ngadm, ntime, nscen, len(corr_methods)))    
@@ -415,11 +434,22 @@ for f in files[si : ei]:
                 # iterate over scenarios
                 ysim = yield_sim_common[g, :, s]
                 if not ysim.mask.all(): # if not blank
+                    time_sim = time_in.copy()
+                    if ysim.mask[-1]: time_sim += 1 # shift by one year
                     # compute correction
-                    yhat, T, R = bc.correct(ysim, yref)
+                    yhat = ma.masked_array(zeros((ntime,)), mask = ones((ntime,)))
+                    R = yhat.copy()
+                    retr, var = bc.correct(ysim, yref, time_sim, time_ref)
+                    ln = min(ntime, len(retr))
+                    yhat[: ln] = retr[: ln]
+                    R[: ln] = var[: ln]
                     # save
-                    yield_biascorr[g, :, s, c] = R
-                    yield_retrend[g, :, s, c] = yhat
+                    if ysim.mask[-1]:
+                        yield_biascorr[g, 1 :, s, c] = R[: -1] # remove last value
+                        yield_retrend[g, 1 :, s, c] = yhat[: -1]
+                    else:
+                        yield_biascorr[g, :, s, c] = R
+                        yield_retrend[g, :, s, c] = yhat
     
     # create file
     fn = options.outdir + sep + splitext(split(f)[1])[0] + '.biascorr.nc4'
