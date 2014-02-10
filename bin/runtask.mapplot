@@ -1,0 +1,8 @@
+#!/bin/bash
+/project/joshuaelliott/ggcmi/bin/mapplot.par.py -b $1 -n 40 -d /project/joshuaelliott/ggcmi/aggregations/rescaled -t all -s default -r firr -v yield -l -57,60,-130,160 -o /home/joshuaelliott/public_html/maps.ggcmi.1/global/firr -c 0,10
+/project/joshuaelliott/ggcmi/bin/mapplot.par.py -b $1 -n 40 -d /project/joshuaelliott/ggcmi/aggregations/rescaled -t all -s default -r firr -v yield -l 20,55,-130,-60 -o /home/joshuaelliott/public_html/maps.ggcmi.1/namr/firr -c 0,10
+/project/joshuaelliott/ggcmi/bin/mapplot.par.py -b $1 -n 40 -d /project/joshuaelliott/ggcmi/aggregations/rescaled -t all -s default -r firr -v yield -l -57,16,-83,-28 -o /home/joshuaelliott/public_html/maps.ggcmi.1/samr/firr -c 0,6
+/project/joshuaelliott/ggcmi/bin/mapplot.par.py -b $1 -n 40 -d /project/joshuaelliott/ggcmi/aggregations/rescaled -t all -s default -r firr -v yield -l -37,37,-21,53 -o /home/joshuaelliott/public_html/maps.ggcmi.1/afri/firr -c 0,4
+/project/joshuaelliott/ggcmi/bin/mapplot.par.py -b $1 -n 40 -d /project/joshuaelliott/ggcmi/aggregations/rescaled -t all -s default -r firr -v yield -l 0,60,36,150 -o /home/joshuaelliott/public_html/maps.ggcmi.1/asia/firr -c 0,6
+/project/joshuaelliott/ggcmi/bin/mapplot.par.py -b $1 -n 40 -d /project/joshuaelliott/ggcmi/aggregations/rescaled -t all -s default -r firr -v yield -l 34,65,-15,53 -o /home/joshuaelliott/public_html/maps.ggcmi.1/euro/firr -c 0,10
+/project/joshuaelliott/ggcmi/bin/mapplot.par.py -b $1 -n 40 -d /project/joshuaelliott/ggcmi/aggregations/rescaled -t all -s default -r firr -v yield -l -52,18,107,180 -o /home/joshuaelliott/public_html/maps.ggcmi.1/ocea/firr -c 0,10
