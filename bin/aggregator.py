@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # import modules
-import sys, re, random, time as tm
+import sys, random, time as tm
 from os import listdir
 from datetime import datetime
 from optparse import OptionParser
@@ -42,6 +42,15 @@ def filterfiles(listing):
         if isfile(l):
             files.append(l)
     return files
+def findfile(files, scen_irr, var):
+    scen = scen_irr.split('_')
+    for f in files:
+        m = var in f
+        if m:
+            for s in scen:
+                m = m and ('_' + s + '_' in f)
+            if m: return f
+    return []
 
 class AggMask(object):
     def __init__(self, filename):
@@ -190,7 +199,7 @@ nlats = len(aggmaskobjs[0].lat) # number of latitudes and longitudes
 nlons = len(aggmaskobjs[0].lon)
 
 lat = aggmaskobjs[0].lat # compute area as function of latitude
-area = 100 * (111.2 / 2)**2 * cos(pi * lat / 360)
+area = 100 * (111.2 / 2) ** 2 * cos(pi * lat / 360)
 area = resize(area, (nlons, nlats)).T
 
 tslines = open(options.tsfile).readlines() # load timestamps file
@@ -237,14 +246,20 @@ for i in range(nfiles): # iterate over subdirectories
     vars = []; scens = []; scens_full = [] # get variables and scenarios
     for j in range(len(files)):
         fs = files[j].split('_')
-    	if len(fs) == 10:    
-            vars.append(fs[5])
+        if 'noirr' in fs:
+            fs.remove('noirr')
+            ir = 'noirr'
+        else:
+            fs.remove('firr')
+            ir = 'firr'
+    	if len(fs) == 9:
+            vars.append(fs[4])
             scens.append(fs[3])
-            scens_full.append('_'.join(fs[3 : 5]))
-        elif len(fs) == 11: # pt files, etc.
-            vars.append(fs[6])
-            scens.append(fs[3] + '_' + fs[5])
- 	    scens_full.append('_'.join(fs[3 : 6]))
+            scens_full.append(fs[3] + '_' + ir)
+        elif len(fs) == 10: # pt files, etc.
+            vars.append(fs[5])
+            scens.append(fs[3] + '_' + fs[4])
+ 	    scens_full.append('_'.join([fs[3], ir, fs[4]]))
 	else:
 	    continue # skip irregular file
     vars = list(set(vars)); vars.sort()
@@ -301,7 +316,7 @@ for i in range(nfiles): # iterate over subdirectories
 
         print 'Loading yield mask . . .'
         t0 = tm.time()
-        yieldfile = [f for f in files if re.search(scen_irr + '_yield', f)][0] # pull yield mask
+        yieldfile = findfile(files, scen_irr, 'yield') # pull yield mask
         yf = nc(sep.join([rootdir, dir, yieldfile]))
         yvars = yf.variables.keys()
         yidx = ['yield' in v for v in yvars].index(True)
@@ -322,9 +337,8 @@ for i in range(nfiles): # iterate over subdirectories
         for k in range(nv): # iterate over variables
             t0 = tm.time()
             
-            varfile = [f for f in files if re.search(scen_irr + '_' + vars[k], f)]
+            varfile = findfile(files, scen_irr, vars[k])
             if not len(varfile): continue
-            varfile = varfile[0]
             print 'Processing', varfile, '. . .'
 
             vf = nc(sep.join([rootdir, dir, varfile])) # load file
