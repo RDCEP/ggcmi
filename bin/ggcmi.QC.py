@@ -5,6 +5,7 @@ from os import listdir
 from os.path import sep, exists
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
+from numpy.ma import isMaskedArray
 from numpy import inf, float32, zeros, ones, where, diff, array_equal, logical_and
 
 def climate_years(clim_names):
@@ -113,6 +114,7 @@ for d in dirs:
     changes = ''  # changes to make
     errors = ''   # errors in data
     info = ''     # basic file info
+    fatal = ''    # fatal errors
     
     if 'pDSSAT' in d:
         scenarios = dssat_scens
@@ -195,7 +197,7 @@ for d in dirs:
                 info_datmat[5] = '[' + str(yr0f) + ', ' + str(yr1f) + ']' # save year range
                 
                 ncf = nc(subdir + sep + f) # load file
-                fvars = ncf.variables.keys()
+		fvars = ncf.variables.keys()
                 
                 lat = None; lon = None; time = None
                 if not 'lat' in fvars: # check if latitude exists
@@ -293,7 +295,12 @@ for d in dirs:
                     v = v[:] # convert to numpy array
                     npts = v.size / 4 # divide by 4 to get rough approximation of land points
                     
-                    # check percent unmasked
+		    # check if masked array
+		    if not isMaskedArray(v):
+		        fatal += sim2 + '\n'
+		        continue
+                    
+		    # check percent unmasked
                     punmasked = 100. * (v.size - v.mask.sum()) / npts
                     if punmasked < 10.:
                         errors += sim2 + 'COVERAGE: Spatial coverage is less than 10%\n'
@@ -317,7 +324,12 @@ for d in dirs:
                         errors += sim2 + 'RANGE: ' + phigher + '% of values > ' + str(vranges[varfullidx][1]) + '\n'
                         
                     # maximum and minimum values
-                    info_datmat[1] = str(v.max()); info_datmat[2] = str(v.min())
+                    vmax = v.max()
+		    info_datmat[1] = '{:<9.3f}'.format(vmax)
+                    if len(info_datmat[1]) > 9: info_datmat[1] = '{:<9.3e}'.format(vmax)
+                    vmin = v.min()
+		    info_datmat[2] = '{:<9.3f}'.format(vmin)
+                    if len(info_datmat[2]) > 9: info_datmat[2] = '{:<9.3e}'.format(vmin)
                     
                     # number of points within range
                     info_datmat[3] = str(logical_and(v >= vranges[varfullidx][0], v <= vranges[varfullidx][1]).sum() / len(time))
@@ -331,7 +343,7 @@ for d in dirs:
                 if newname != f:
                     changes += sim2 + 'FILENAME: Change to ' + newname + '\n'
                 
-                info += '{:80s}{:8s}{:8s}{:18s}{:15s}{:14s}{:8s}\n'.format(info_datmat[0], info_datmat[1], \
+                info += '{:80s}{:10s}{:10s}{:18s}{:15s}{:14s}{:8s}\n'.format(info_datmat[0], info_datmat[1], \
                     info_datmat[2], info_datmat[3], info_datmat[4], info_datmat[5], info_datmat[6])
 
     # mark missing data
@@ -343,6 +355,15 @@ for d in dirs:
     sumfile = open(sumfilename, 'w')
     sumfile.write('!!! Summary produced by ggcmi.QC.py !!!\n')
     sumfile.write('!!! for model ' + d + ' !!!\n\n')
+
+    header = '{:15s}{:15s}{:15s}{:20s}{:8s}'.format('Model', 'Climate', 'Crop', 'Scenario', 'Variable')
+    sumfile.write('FATAL ERRORS\n\n')
+    sumfile.write(header + '\n')
+    sumfile.write('=' * len(header) + '\n')
+    if fatal != '':
+        sumfile.write(fatal + '\n')
+    else:
+        sumfile.write('None\n\n')
 
     header = '{:15s}{:15s}{:15s}{:20s}{:15s}{:s}'.format('Model', 'Climate', 'Crop', 'Scenario', 'Variable', 'Error')
     sumfile.write('DATA QUALITY WARNINGS\n\n')
@@ -371,7 +392,7 @@ for d in dirs:
     else:
         sumfile.write('None\n\n')
         
-    header = '{:80s}{:8}{:8}{:18}{:15}{:14}{:8}'.format('File', 'MaxVal', 'MinVal', 'GridcellsInRange', 'VarName', 'YearRange', 'NumYears')
+    header = '{:80s}{:10}{:10}{:18}{:15}{:14}{:8}'.format('File', 'MaxVal', 'MinVal', 'GridcellsInRange', 'VarName', 'YearRange', 'NumYears')
     sumfile.write('BASIC INFO\n\n')
     sumfile.write(header + '\n')
     sumfile.write('=' * len(header) + '\n')
