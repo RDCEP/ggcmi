@@ -38,7 +38,7 @@ mdates = loadData(maturityfile)[0]
 pdates = pdates[0] # select first year
 mdates = mdates[0]
 
-latidx, lonidx = ma.where(365 - pdates < mdates)
+latidx, lonidx = ma.where(pdates > mdates)
 shiftd = inputd[:, latidx, lonidx]
 shiftd[: -1] = shiftd[1 :] # shift data
 shiftd[-1].mask = True

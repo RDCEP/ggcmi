@@ -32,7 +32,7 @@ with nc(growingfile) as f:
 pdates = ma.masked_where(pdates < 0, pdates) # mask < 0
 mdates = ma.masked_where(mdates < 0, mdates)
 
-latidx, lonidx = ma.where(365 - pdates < mdates)
+latidx, lonidx = ma.where(pdates > mdates)
 shiftd = inputd[:, latidx, lonidx]
 shiftd[: -1] = shiftd[1 :] # shift data
 shiftd[-1].mask = True
