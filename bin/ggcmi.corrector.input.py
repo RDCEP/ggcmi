@@ -26,13 +26,17 @@ with nc(inputfile) as f: # load data
     varname = var[idx][0]
     inputd = f.variables[varname][:]
 with nc(growingfile) as f:
+    lats = f.variables['lat'][:]
     pdates = f.variables['planting day'][:]
     mdates = f.variables['growing season length'][:]
+si = [i[0] for i in sorted(enumerate(lats), reverse = True, key = lambda x : x[1])]
+pdates = pdates[:, si, :] # flip latitudes
+mdates = mdates[:, si, :]
 
 pdates = ma.masked_where(pdates < 0, pdates) # mask < 0
 mdates = ma.masked_where(mdates < 0, mdates)
 
-latidx, lonidx = ma.where(pdates > mdates)
+latidx, lonidx = ma.where(365 - pdates < mdates)
 shiftd = inputd[:, latidx, lonidx]
 shiftd[: -1] = shiftd[1 :] # shift data
 shiftd[-1].mask = True
