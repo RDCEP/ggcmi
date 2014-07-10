@@ -6,9 +6,9 @@ from os import listdir
 from datetime import datetime
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
-from os.path import sep, getmtime, isfile, isdir
 from numpy.ma import masked_array, unique, masked_where
-from numpy import pi, zeros, ones, cos, resize, where, ceil, double, isnan, logical_not
+from os.path import sep, getmtime, isfile, isdir, basename
+from numpy import pi, zeros, ones, cos, resize, mod, where, ceil, double, isnan, logical_not, logical_and
 
 # HELPER FUNCTIONS
 def createnc(filename, time, tunits, scens, rdata, rnames, runits, rlongnames):
@@ -39,7 +39,7 @@ def createnc(filename, time, tunits, scens, rdata, rnames, runits, rlongnames):
 def filterfiles(listing):
     files = []
     for l in listing:
-        if isfile(l):
+        if isfile(l) and not l.endswith('.old'): # skip old files
             files.append(l)
     return files
 def findfile(files, scen_irr, var):
@@ -51,6 +51,35 @@ def findfile(files, scen_irr, var):
                 m = m and ('_' + s + '_' in f)
             if m: return f
     return []
+def getcropabbr(crop):
+    cmap = {'maize': 'mai', 'wheat': 'whe', 'soy': 'soy', 'rice': 'ric', \
+            'sorghum': 'sor', 'millet': 'mil', 'managed_grass': 'mgr'}
+    if crop in cmap:
+        return cmap[crop]
+    else:
+        raise Exception('Unrecognized crop name')
+def getgrowing(dir, crop, ir):
+    cmap = {'maize': 'Maize', 'wheat': 'Wheat', 'soy': 'Soybeans', 'rice': 'Rice', \
+            'sorghum': 'Sorghum', 'millet': 'Millet'}
+    irmap = {'firr': 'ir', 'noirr': 'rf'}
+    if crop in cmap and ir in irmap:
+        filestart = cmap[crop] + '_' + irmap[ir]
+        flist = listdir(dir)
+        file = [f for f in flist if f.startswith(filestart) and f.endswith('nc4')]
+        if file:
+            return dir + sep + file[0] # first return
+        else:
+            raise Exception('Cannot map to growing season file: %s, %s, %s' % (dir, crop, ir))
+    else:
+        raise Exception('Cannot map to growing season file: %s, %s, %s' % (dir, crop, ir))
+def shiftdata(data, pdate, hdate, yearthr = 1):
+    latidx, lonidx = where(logical_and(pdate >= hdate, hdate >= yearthr))
+    datac = data.copy()
+    shiftd = datac[:, latidx, lonidx]
+    shiftd[1 :] = shiftd[: -1] # shift data down one
+    shiftd[0].mask = True
+    datac[:, latidx, lonidx] = shiftd
+    return datac
 
 class AggMask(object):
     def __init__(self, filename):
@@ -107,6 +136,8 @@ parser.add_option("-a", "--agg", dest = "agg", default = "", type = "string",
                   help = "Comma-separated list of aggregation mask files")
 parser.add_option("-t", "--tsfile", dest = "tsfile", default = "timestamps.txt", type = "string",
                   help = "File of timestamps", metavar = "FILE")
+parser.add_option("-g", "--growdir", dest = "growdir", default = "", type = "string",
+                  help = "Directory of growing season files")
 parser.add_option("-o", "--outdir", dest = "outdir", default = "", type = "string",
                   help = "Comma-separated list of output directories to save results for different aggregation masks")
 options, args = parser.parse_args()
@@ -114,9 +145,7 @@ options, args = parser.parse_args()
 print 'RUNNING AGGREGATOR'
 print '=================='
 
-fillv = 1e20 # some constants
-yieldthr1 = 0.1 # t/ha
-yieldthr2 = 30
+fillv, yieldthr1, yieldthr2, yearthr = 1e20, 0.1, 30, 1 # some constants
 
 rootdir = options.dir # root directory
 if rootdir[-1] == sep: rootdir = rootdir[: -1] # remove final separator
@@ -135,6 +164,7 @@ totfiles = [] # total files to create
 for i in models:
     if options.weath == '*':
         climates = listdir(rootdir + sep + i)
+        if 'output.not.corrected' in climates: climates.remove('output.not.corrected')
     else:
         climates = options.weath.split(',')
     for j in climates:
@@ -154,8 +184,7 @@ for i in models:
                         totfiles.append([d, aggmasks[m], aggmaskdirs[m]])
 nfiles = len(totfiles)
 
-# shuffle directories to distribute large jobs
-random.seed(0)
+random.seed(0) # shuffle directories to distribute large jobs
 random.shuffle(totfiles)
 
 batch = options.batch # find out start and end indices for batch
@@ -195,8 +224,7 @@ naggmasks = len(uqaggmasks)
 aggmaskobjs = [] # load aggregration masks
 for i in range(naggmasks): aggmaskobjs.append(AggMask(uqaggmasks[i]))
 
-nlats = len(aggmaskobjs[0].lat) # number of latitudes and longitudes
-nlons = len(aggmaskobjs[0].lon)
+nlats, nlons = len(aggmaskobjs[0].lat), len(aggmaskobjs[0].lon) # number of latitudes and longitudes
 
 lat = aggmaskobjs[0].lat # compute area as function of latitude
 area = 100 * (111.2 / 2) ** 2 * cos(pi * lat / 360)
@@ -222,11 +250,13 @@ for i in range(nfiles): # iterate over subdirectories
     tsfile.write(dir + ' ' + ts + '\n')
     if dir in tsdic: # check if file has been modified
         if ts == tsdic[dir]: # same timestamp means already processed
-            print 'Timstamp has not changed. Skipping directory . . .'
+            print 'Timestamp has not changed. Skipping directory . . .'
             continue
     
-    cidx = uqcrops.index(dir.split(sep)[2].capitalize()) # crop
-    
+    cropname = dir.split(sep)[2] # crop
+    cropabbr = getcropabbr(cropname)
+    cidx = uqcrops.index(cropname.capitalize())
+
     aidx = uqaggmasks.index(aggmask) # aggregration mask
     amask = aggmaskobjs[aidx]
     anames = amask.names()
@@ -242,7 +272,9 @@ for i in range(nfiles): # iterate over subdirectories
     if not len(fileslist):
         print 'No files found. Skipping directory . . .'
         continue
-    
+    files = [basename(l) for l in fileslist]
+    files = [f for f in files if '_' + cropabbr + '_' in f]
+
     vars = []; scens = []; scens_full = [] # get variables and scenarios
     for j in range(len(files)):
         fs = files[j].split('_')
@@ -266,16 +298,11 @@ for i in range(nfiles): # iterate over subdirectories
     scens = list(set(scens)); scens.sort()
     scens_full = list(set(scens_full)); scens_full.sort()
 
-    f = sep.join([rootdir, dir, files[0]]) # use first file to get time and units
-    print 'Opening file:', f
-    ncf = nc(f)
-    time = ncf.variables['time'][:]
-    tunits = ncf.variables['time'].units
-    ncf.close()
+    with nc(sep.join([rootdir, dir, files[0]])) as ncf: # use first file to get time and units
+        time = ncf.variables['time'][:]
+        tunits = ncf.variables['time'].units
 
-    nv = len(vars)  # number of variables
-    nt = len(time)  # number of times
-    ns = len(scens) # number of scenarios  
+    nv, nt, ns = len(vars), len(time), len(scens) # number of variables, times, scenarios
 
     filename = files[0].split('_') # use first file to get filename
     if len(filename) == 11: filename.remove(filename[3]) # remove the extra label for pt
@@ -283,7 +310,6 @@ for i in range(nfiles): # iterate over subdirectories
     filename.remove(filename[3])
     filename.remove(filename[3])
     filename = outdir + sep + '_'.join(filename) # save in output directory
-
     createnc(filename, time, tunits, scens, audata[: -1], anames[: -1], aunits[: -1], alongnames[: -1]) # create nc file
 
     print 'Preallocating . . .'
@@ -314,25 +340,50 @@ for i in range(nfiles): # iterate over subdirectories
 
         weight = landmasksir[cidx] if not iidx else landmasksrf[cidx] # weights
 
+        print 'Loading planting and maturity dates . . .'
+        t0 = tm.time()
+        plantingfile = findfile(files, scen_irr, 'plant-day')
+        if plantingfile:
+            with nc(sep.join([rootdir, dir, plantingfile])) as pf:
+               pdate = pf.variables['plant-day_' + cropabbr][0] # first time
+        else:
+            plantingfile = getgrowing(options.growdir, cropname, scen_irr_split[1])
+            with nc(plantingfile) as pf:
+                lats = pf.variables['lat'][:]
+                lsi = [idxl[0] for idxl in sorted(enumerate(lats), reverse = True, key = lambda x : x[1])]
+                pdate = pf.variables['planting day'][lsi] # flip latitudes
+        harvestfile = findfile(files, scen_irr, 'maty-day')
+        if harvestfile:
+            with nc(sep.join([rootdir, dir, harvestfile])) as hf:
+                hdate = hf.variables['maty-day_' + cropabbr][0] # first time
+        else:
+            harvestfile = getgrowing(options.growdir, cropname, scen_irr_split[1])
+            with nc(harvestfile) as hf:
+                lats = hf.variables['lat'][:]
+                lsi = [idxl[0] for idxl in sorted(enumerate(lats), reverse = True, key = lambda x : x[1])]
+                hdate = hf.variables['growing season length'][lsi] # flip latitudes
+        hdate = mod(pdate + hdate, 366) # convert to Julian day
+        hdate[hdate == 0] = 1
+        print '  Elapsed time =', tm.time() - t0, 'seconds  . . .'
+
         print 'Loading yield mask . . .'
         t0 = tm.time()
         yieldfile = findfile(files, scen_irr, 'yield') # pull yield mask
         yf = nc(sep.join([rootdir, dir, yieldfile]))
-        yvars = yf.variables.keys()
-        yidx = ['yield' in v for v in yvars].index(True)
-        yieldvar = yf.variables[yvars[yidx]][:]
+        yieldvar = yf.variables['yield_' + cropabbr][:]
+        yieldvar = shiftdata(yieldvar, pdate, hdate, yearthr) # shift data
         yieldvar = masked_where(yieldvar < yieldthr1, yieldvar) # mask yields based on thresholds
         yieldvar = masked_where(yieldvar > yieldthr2, yieldvar)
         yieldmask = logical_not(yieldvar.mask)
         yf.close()
         print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
-        
+
         print 'Computing areas . . .'
         t0 = tm.time()
         for k in range(nmasks):
             for m in range(audata[k].size):
-                areas[k][m, :, sidx, iidx] = (weight * area * aselect[k][m] * yieldmask).sum(axis = 2).sum(axis = 1)
-        print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
+	        areas[k][m, :, sidx, iidx] = (weight * area * aselect[k][m] * yieldmask).sum(axis = 2).sum(axis = 1)
+	print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
         
         for k in range(nv): # iterate over variables
             t0 = tm.time()
@@ -341,15 +392,12 @@ for i in range(nfiles): # iterate over subdirectories
             if not len(varfile): continue
             print 'Processing', varfile, '. . .'
 
-            vf = nc(sep.join([rootdir, dir, varfile])) # load file
-
-            fvars = vf.variables.keys() # get variable and units
-            vidx = [vars[k] in v for v in fvars].index(True)
-            var = vf.variables[fvars[vidx]]
-            if not j: vunits[k] = var.units if 'units' in var.ncattrs() else ''
-            var = var[:]
+            with nc(sep.join([rootdir, dir, varfile])) as vf: # load file
+                var = vf.variables[vars[k] + '_' + cropabbr]
+                if not j: vunits[k] = var.units if 'units' in var.ncattrs() else ''
+                var = var[:]
             var[isnan(var)] = 0. # change NaN values to zero
-            vf.close()
+            var = shiftdata(var, pdate, hdate, yearthr) # shift data
 
             print '  Processing aggregration masks . . .'
             for m in range(nmasks):
@@ -363,39 +411,29 @@ for i in range(nfiles): # iterate over subdirectories
                         vsum = vartmp[m].sum(axis = 2).sum(axis = 1)
                         averages[m][k, valididx, t, sidx, iidx] = vsum[valididx] / areas[m][valididx, t, sidx, iidx]
             print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
-
-    # INSERT FOR DEBUGGING
-    # import cPickle as pickle
     
     print 'Writing file . . .'
-    f = nc(filename, 'a', format = 'NETCDF4_CLASSIC') # append variables
-    for j in range(nmasks):
-        name = anames[j]
-        dims = ('time', 'scen', 'irr')
-        areas[j][:, :, :, 2] = areas[j][:, :, :, 0] + areas[j][:, :, :, 1] # sum area
-        if name != 'global': dims = (name + '_index',) + dims
-        areav = f.createVariable('area_' + name, 'f4', dims, zlib = True, complevel = 9)
-        areav[:] = areas[j].squeeze()
-        areav.units = 'hectares'
-        areav.long_name = name + ' harvested area'
-        areamasked = masked_where(areas[j][:, :, :, 2] == 0, areas[j][:, :, :, 2]) # prevent divide by zero errors
-        
-        # INSERT FOR DEBUGGING
-        # pickle.dump(areas[j], open('areas_mask' + str(j + 1) + '.p', 'w'))
-        
-        for k in range(nv):
-            averages[j][k, :, :, :, 2] = (areas[j][:, :, :, 0] * averages[j][k, :, :, :, 0] + \
-                                          areas[j][:, :, :, 1] * averages[j][k, :, :, :, 1]) / \
-                                          areamasked # area average
-            avev = f.createVariable(vars[k] + '_' + name, 'f4', dims, fill_value = fillv, zlib = True, complevel = 9)
-            avev[:] = averages[j][k].squeeze()            
-            avev.units = vunits[k]
-            avev.long_name = 'average ' + name + ' ' + vars[k]
-        
-        # INSERT FOR DEBUGGING
-        # pickle.dump(averages[j], open('averages_mask' + str(j + 1) + '.p', 'w'))
-        
-    f.close()
+    with nc(filename, 'a', format = 'NETCDF4_CLASSIC') as f: # append variables
+        for j in range(nmasks):
+            name = anames[j]
+            dims = ('time', 'scen', 'irr')
+            areas[j][:, :, :, 2] = areas[j][:, :, :, 0] + areas[j][:, :, :, 1] # sum area
+            if name != 'global': dims = (name + '_index',) + dims
+            areav = f.createVariable('area_' + name, 'f4', dims, zlib = True, complevel = 9)
+            areav[:] = areas[j].squeeze()
+            areav.units = 'hectares'
+            areav.long_name = name + ' harvested area'
+            areamasked = masked_where(areas[j][:, :, :, 2] == 0, areas[j][:, :, :, 2]) # prevent divide by zero errors
+            for k in range(nv):
+                av1 = areas[j][:, :, :, 0] * averages[j][k, :, :, :, 0]
+		av2 = areas[j][:, :, :, 1] * averages[j][k, :, :, :, 1]
+		av1[logical_and(av1.mask, ~av2.mask)] = 0.
+		av2[logical_and(av2.mask, ~av1.mask)] = 0.
+                averages[j][k, :, :, :, 2] = (av1 + av2) / areamasked # area average
+                avev = f.createVariable(vars[k] + '_' + name, 'f4', dims, fill_value = fillv, zlib = True, complevel = 9)
+                avev[:] = averages[j][k].squeeze()            
+                avev.units = vunits[k]
+                avev.long_name = 'average ' + name + ' ' + vars[k]
 
 tsfile.close() # close timestamps file
 
