@@ -115,6 +115,7 @@ class AggMask(object):
         return ud
 
 # parse inputs
+print str(sys.argv)
 parser = OptionParser()
 parser.add_option("-b", "--batch", dest = "batch", default = "1", type = "int",
                   help = "Batch to process")
@@ -318,6 +319,7 @@ for i in range(nfiles): # iterate over subdirectories
     print 'Preallocating . . .'
     t0 = tm.time()
     averages = [0] * nmasks; areas = [0] * nmasks # final averages and areas
+    #print "AREAS=" + str(areas)
     aselect = [0] * nmasks; vartmp = [0] * nmasks
     for j in range(nmasks):
         sz = audata[j].size
