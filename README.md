@@ -89,15 +89,16 @@ With top_models=1, this just takes the best model (according to the chosen metri
 
 (also go into the /modelensemble/ folder)
 Now we produce multi-metrics files for the ensemble combinations in the same way we did for the models. This allows us to easily include the ensembles in visualization and analysis products produced from the multi-metric files. These ensemble metric files end up being 8 dimensional:
-dimensions:
-gadm0_index = 208 ;
-detr_methods = 5 ;
-corr_methods = 2 ;
-time_range = 3 ;
-climate = 9 ;
-crop = 6 ;
-top_models = 7 ;
-weighted = 2 ;
+
+* dimensions:
+* gadm0_index = 208 ;
+* detr_methods = 5 ;
+* corr_methods = 2 ;
+* time_range = 3 ;
+* climate = 9 ;
+* crop = 6 ;
+* top_models = 7 ;
+* weighted = 2 ;
 
 Notes:
 There is no scenario dimension in these files but instead there is a 'top_models' and a 'weighted' dimension that indicates the different properties from the ensembling step.
