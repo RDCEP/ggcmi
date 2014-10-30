@@ -20,12 +20,15 @@ parser.add_option("-i", "--infile", dest = "infile", default = "", type = "strin
                   help = "Input aggregated file", metavar = "FILE")
 parser.add_option("-r", "--reffile", dest = "reffile", default = "", type = "string",
                   help = "Reference data netcdf file", metavar = "FILE")
+parser.add_option("-a", "--agglvl", dest = "agglvl", default = "gadm0", type = "string",
+                  help = "Aggregation level (e.g., gadm0, fpu, kg)")
 parser.add_option("-o", "--outdir", dest = "outdir", default = "", type = "string",
                   help = "Output directory to save results")
 options, args = parser.parse_args()
 
 infile  = options.infile
 reffile = options.reffile
+agglvl  = options.agglvl
 outdir  = options.outdir
 
 dt = ['none', 'lin', 'quad', 'ma', 'ffdtr'] # methods
@@ -36,47 +39,56 @@ ndt, nmp, ncr = len(dt), len(mp), len(cr)
 crop = split(infile)[1].split('_')[3] # pull crop name from file name
 
 with nc(reffile) as fref: # pull reference data
-    gref       = fref.variables['gadm0'][:]
-    tref       = fref.variables['time'][:]
-    tref_units = fref.variables['time'].units
-    dtidx      = fref.variables['dt'].long_name.split(', ').index('none')
-    mpidx      = fref.variables['mp'].long_name.split(', ').index('true')
-    yield_ref  = fref.variables['yield_' + crop][:, :, dtidx, mpidx]
-tref += int(findall(r'\d+', tref_units)[0]) # get reference time
+    aref        = fref.variables[agglvl][:]
+    aggunits    = fref.variables[agglvl].units
+    agglongname = fref.variables[agglvl].long_name 
+    tref        = fref.variables['time'][:]
+    tref_units  = fref.variables['time'].units
+    dtidx       = fref.variables['dt'].long_name.split(', ').index('none')
+    mpidx       = fref.variables['mp'].long_name.split(', ').index('true')
+
+    var = 'yield_' + crop
+    if var in fref.variables:
+        yield_ref = fref.variables[var][:, :, dtidx, mpidx]
+    else:
+        print 'Crop %s unavailable in reference file %s. Exiting . . .' % (crop, reffile)
+        sys.exit()
 
 with nc(infile) as fin: # pull input data
-    gin       = fin.variables['gadm0_index'][:]
+    ain       = fin.variables[agglvl + '_index'][:]
     tin       = fin.variables['time'][:]
     tin_units = fin.variables['time'].units
     scen      = fin.variables['scen'].long_name.split(', ')
     sum_idx   = fin.variables['irr'].long_name.split(', ').index('sum')
-    yield_in  = fin.variables['yield_gadm0'][:, :, :, sum_idx]
-tin += int(findall(r'\d+', tin_units)[0]) - 1 # get time
+    yield_in  = fin.variables['yield_' + agglvl][:, :, :, sum_idx]
 
-gadm = intersect1d(gin, gref) # find common gadm indices
+tref += int(findall(r'\d+', tref_units)[0])    # get reference time
+tin  += int(findall(r'\d+', tin_units)[0]) - 1 # get simulation time
+
+aggs = intersect1d(ain, aref) # find common gadm indices
 time = intersect1d(tin, tref) # find common times
-ngadm, ntime, nscen = len(gadm), len(time), len(scen)
-if not ngadm: raise Exception('No common gadm indices')
+naggs, ntime, nscen = len(aggs), len(time), len(scen)
+if not naggs: raise Exception('No common aggregates')
 
-yield_sim_common = masked_array(zeros((ngadm, len(tin), nscen)), mask = ones((ngadm, len(tin), nscen)))
-yield_ref_common = masked_array(zeros((ngadm, len(tref))), mask = ones((ngadm, len(tref))))
-for i in range(ngadm):
-    yield_sim_common[i] = yield_in[list(gin).index(gadm[i])]
-    yield_ref_common[i] = yield_ref[list(gref).index(gadm[i])]
+yield_sim_common = masked_array(zeros((naggs, len(tin), nscen)), mask = ones((naggs, len(tin), nscen)))
+yield_ref_common = masked_array(zeros((naggs, len(tref))), mask = ones((naggs, len(tref))))
+for i in range(naggs):
+    yield_sim_common[i] = yield_in[list(ain).index(aggs[i])]
+    yield_ref_common[i] = yield_ref[list(aref).index(aggs[i])]
 
-sh = (ngadm, ntime, nscen, ndt, nmp, ncr)
-yield_sim  = masked_array(zeros(sh), mask = ones(sh))
+sh = (naggs, ntime, nscen, ndt, nmp, ncr)
+yield_detr = masked_array(zeros(sh), mask = ones(sh))
 yield_retr = masked_array(zeros(sh), mask = ones(sh))
-for g, s in product(range(ngadm), range(nscen)):
+for g, s in product(range(naggs), range(nscen)):
     yref, ysim = yield_ref_common[g], yield_sim_common[g, :, s]
     if not yref.mask.all() and not ysim.mask.all():
         for d, m, c in product(range(ndt), range(nmp), range(ncr)):
             bc = BiasCorrecter(dt[d], mp[m], cr[c])
             yhat, R = bc.correct(ysim, yref, tin, tref)
-            yield_sim[g, :, s, d, m, c]  = R
+            yield_detr[g, :, s, d, m, c] = R
             yield_retr[g, :, s, d, m, c] = yhat
 
 fn = outdir + sep + splitext(split(infile)[1])[0] + '.biascorr.nc4' # create file
-fout = BiasCorrectFile(fn, gadm, time, scen, dt, mp, cr)            
-fout.append('yield_detrend', yield_sim,  ('gadm0', 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average detrended gadm yield') # append to file
-fout.append('yield_retrend', yield_retr, ('gadm0', 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average bias-corrected gadm yield')
+fout = BiasCorrectFile(fn, aggs, agglvl, aggunits, agglongname, time, scen, dt, mp, cr)
+fout.append('yield_detrend', yield_detr, (agglvl, 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average detrended yield') # append to file
+fout.append('yield_retrend', yield_retr, (agglvl, 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average retrended yield')

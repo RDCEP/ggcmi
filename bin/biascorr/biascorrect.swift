@@ -1,15 +1,28 @@
 type file;
 
-app (file o) biascorrect(string inputfile, string reffile, string outdir) {
-    biascorrect "-i" inputfile "-r" reffile "-o" outdir stdout = @o;
+app (file o) get_inputs () {
+   inputs stdout = @o;  
 }
 
-file aggfiles[] <filesys_mapper; location = "/project/joshuaelliott/ggcmi/processed/aggs/gadm0", pattern = "*">;
-string reffile = "/project/joshuaelliott/ggcmi/reference/faostat/faostat.1961-2012.new.nc4";
-string outdir  = "/project/joshuaelliott/ggcmi/processed/biascorr.new";
+app biascorrect(string inputfile, string reffile, string agglvl, string outdir) {
+    biascorrect "-i" inputfile "-r" reffile "-a" agglvl "-o" outdir;
+}
 
-foreach f, idx in aggfiles {
-    file fout <single_file_mapper; file = @strcat("./logs/bc_", idx + 1, ".out")>;
-    string fn[] = @strsplit(@f, "__root__");
-    fout = biascorrect(fn[1], reffile, outdir);
+type Inputs {
+    string indir;
+    string reffile;
+    string agglvl;
+    string outdir;
+}
+
+file ff <"finder.out">;
+ff = get_inputs();
+Inputs iro[] = readData(ff);
+
+foreach i in iro {
+   file aggfiles[] <filesys_mapper; location = i.indir, pattern = "*">;
+   foreach f in aggfiles {
+      string fn[] = @strsplit(@f, "__root__");
+      biascorrect(fn[1], i.reffile, i.agglvl, i.outdir);
+   }
 }
