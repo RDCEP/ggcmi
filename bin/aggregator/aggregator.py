@@ -115,6 +115,7 @@ class AggMask(object):
         return ud
 
 # parse inputs
+print str(sys.argv)
 parser = OptionParser()
 parser.add_option("-b", "--batch", dest = "batch", default = "1", type = "int",
                   help = "Batch to process")
@@ -301,6 +302,9 @@ for i in range(nfiles): # iterate over subdirectories
     with nc(sep.join([rootdir, dir, files[0]])) as ncf: # use first file to get time and units
         time = ncf.variables['time'][:]
         tunits = ncf.variables['time'].units
+        if tunits == 'year as %Y.%f': # patch for GEPIC
+            tunits = 'growing seasons since %d-01-01 00:00:00' % int(time[0])
+            time = time - time[0] + 1
 
     nv, nt, ns = len(vars), len(time), len(scens) # number of variables, times, scenarios
 
@@ -315,6 +319,7 @@ for i in range(nfiles): # iterate over subdirectories
     print 'Preallocating . . .'
     t0 = tm.time()
     averages = [0] * nmasks; areas = [0] * nmasks # final averages and areas
+    #print "AREAS=" + str(areas)
     aselect = [0] * nmasks; vartmp = [0] * nmasks
     for j in range(nmasks):
         sz = audata[j].size
@@ -369,8 +374,11 @@ for i in range(nfiles): # iterate over subdirectories
         print 'Loading yield mask . . .'
         t0 = tm.time()
         yieldfile = findfile(files, scen_irr, 'yield') # pull yield mask
-        yf = nc(sep.join([rootdir, dir, yieldfile]))
-        yieldvar = yf.variables['yield_' + cropabbr][:]
+        if yieldfile == []:
+            continue
+        else:
+            yf = nc(sep.join([rootdir, dir, yieldfile]))
+	yieldvar = yf.variables['yield_' + cropabbr][:]
         yieldvar = shiftdata(yieldvar, pdate, hdate, yearthr) # shift data
         yieldvar = masked_where(yieldvar < yieldthr1, yieldvar) # mask yields based on thresholds
         yieldvar = masked_where(yieldvar > yieldthr2, yieldvar)
@@ -383,8 +391,9 @@ for i in range(nfiles): # iterate over subdirectories
         for k in range(nmasks):
             for m in range(audata[k].size):
 	        areas[k][m, :, sidx, iidx] = (weight * area * aselect[k][m] * yieldmask).sum(axis = 2).sum(axis = 1)
-	print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
-        
+	        areas[k] = masked_where(areas[k] == 0, areas[k])
+        print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
+         
         for k in range(nv): # iterate over variables
             t0 = tm.time()
             
@@ -403,13 +412,11 @@ for i in range(nfiles): # iterate over subdirectories
             for m in range(nmasks):
                 print '    ' + anames[m] + ' . . .'
                 ridx, latidx, lonidx = where(aselect[m])
-                for t in range(nt):
-                    valididx = areas[m][:, t, sidx, iidx] > 0.
-                    if valididx.sum():
-                        vartmp[m][:] = 0. # reset
-                        vartmp[m][ridx, latidx, lonidx] = var[t, latidx, lonidx] * weight[latidx, lonidx] * area[latidx, lonidx] * yieldmask[t, latidx, lonidx] * aselect[m][ridx, latidx, lonidx]
-                        vsum = vartmp[m].sum(axis = 2).sum(axis = 1)
-                        averages[m][k, valididx, t, sidx, iidx] = vsum[valididx] / areas[m][valididx, t, sidx, iidx]
+                vartmp[m][:] = 0. # reset
+		for t in range(nt):
+                    vartmp[m][ridx, latidx, lonidx] = var[t, latidx, lonidx] * weight[latidx, lonidx] * area[latidx, lonidx] * yieldmask[t, latidx, lonidx] * aselect[m][ridx, latidx, lonidx]
+                    vsum = vartmp[m].sum(axis = 2).sum(axis = 1)
+                    averages[m][k, :, t, sidx, iidx] = vsum / areas[m][:, t, sidx, iidx]
             print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
     
     print 'Writing file . . .'
@@ -417,19 +424,21 @@ for i in range(nfiles): # iterate over subdirectories
         for j in range(nmasks):
             name = anames[j]
             dims = ('time', 'scen', 'irr')
-            areas[j][:, :, :, 2] = areas[j][:, :, :, 0] + areas[j][:, :, :, 1] # sum area
+            area1, area2 = areas[j][:, :, :, 0], areas[j][:, :, :, 1]
+	    area1[logical_and(area1.mask, ~area2.mask)] = 0.
+            area2[logical_and(area2.mask, ~area1.mask)] = 0. 
+            areas[j][:, :, :, 2] = area1 + area2 # sum area
             if name != 'global': dims = (name + '_index',) + dims
             areav = f.createVariable('area_' + name, 'f4', dims, zlib = True, complevel = 9)
             areav[:] = areas[j].squeeze()
             areav.units = 'hectares'
             areav.long_name = name + ' harvested area'
-            areamasked = masked_where(areas[j][:, :, :, 2] == 0, areas[j][:, :, :, 2]) # prevent divide by zero errors
             for k in range(nv):
                 av1 = areas[j][:, :, :, 0] * averages[j][k, :, :, :, 0]
 		av2 = areas[j][:, :, :, 1] * averages[j][k, :, :, :, 1]
 		av1[logical_and(av1.mask, ~av2.mask)] = 0.
 		av2[logical_and(av2.mask, ~av1.mask)] = 0.
-                averages[j][k, :, :, :, 2] = (av1 + av2) / areamasked # area average
+                averages[j][k, :, :, :, 2] = (av1 + av2) / areas[j][:, :, :, 2] # area average
                 avev = f.createVariable(vars[k] + '_' + name, 'f4', dims, fill_value = fillv, zlib = True, complevel = 9)
                 avev[:] = averages[j][k].squeeze()            
                 avev.units = vunits[k]
