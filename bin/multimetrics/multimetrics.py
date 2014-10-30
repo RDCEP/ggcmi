@@ -48,6 +48,7 @@ def createnc(filename, gadmindices, scen, detrmethods, corrmethods, timenames, c
 
 def computeTSCorr(a, b):
     return corrcoef(a, b)[0, 1]
+
 def computeVarRatio(a, b):
     if not b.mask.all():
         a_mean = a.mean()
@@ -58,6 +59,7 @@ def computeVarRatio(a, b):
             return masked
     else:
         return masked
+
 def computeRMSE(a, b, c = None):
     rmse = sqrt(((a - b) ** 2).mean())
     if c is not None:
@@ -99,6 +101,8 @@ parser.add_option("-r", "--ref", dest = "ref", default = "", type = "string",
                   help = "Reference data netcdf file", metavar = "FILE")
 parser.add_option("-o", "--outdir", dest = "outdir", default = "", type = "string",
                   help = "Output directory to save results")
+parser.add_option("-m", "--model", dest = "model", type = "string", 
+                  help = "Model prefix (eg. pdssat)")
 options, args = parser.parse_args()
 
 batch, numbatches = options.batch, options.num_batches
@@ -106,8 +110,7 @@ indir, outdir = options.dir, options.outdir
 reffile = options.ref
 
 files = listdir(indir)
-
-models  = unique(array([f.split('_')[0] for f in files]))
+models = [options.model]
 nmodels = len(models)
 
 bz = int(ceil(double(nmodels) / numbatches))
@@ -161,9 +164,9 @@ for m in models[si : ei]:
             yr0 = int(re.findall(r'\d+', fm.variables['time'].units)[0])
             timesim = fm.variables['time'][:] + yr0
         with nc(reffile) as ref:
-            gadmindicesref = ref.variables['gadm0_index'][:]
-            yieldref = ref.variables['yield_' + cropnamelong][:]
-            corrmethodsref = ref.variables['detrend'].long_name.split(', ')
+            gadmindicesref = ref.variables['gadm0'][:]
+            yieldref = ref.variables['yield_' + cropname][:]
+            corrmethodsref = ref.variables['dt'].long_name.split(', ')
             yr0 = int(re.findall(r'\d+', ref.variables['time'].units)[0])
             timeref = ref.variables['time'][:] + yr0
 
@@ -198,3 +201,4 @@ for m in models[si : ei]:
         varratiovar[:] = varratio
         rmsevar = f.createVariable('rmse', 'f4', ('gadm0_index', 'scen', 'detr_methods', 'corr_methods', 'time_range', 'climate', 'crop'), fill_value = 1e20, zlib = True, complevel = 9)
         rmsevar[:] = rmse
+
