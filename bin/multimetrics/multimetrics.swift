@@ -1,21 +1,28 @@
 type file;
 
-app (external e) multimetrics (string directory, string model, string reference, string out_dir) 
-{
-   multimetrics "-b" "1"
-                "-n" "1"
-                "-d" directory
-                "-m" model
-                "-r" reference
-                "-o" out_dir;
+app (file o) get_inputs () {
+   inputs stdout = @o;  
 }
 
-string models[]   = strsplit(arg("m"), ",");
-string directory  = arg("d");
-string reference  = arg("r");
-string out_dir    = arg("o");
+app multimetrics(string inputfile, string reffile, string agglvl, string outdir) {
+    multimetrics inputfile reffile agglvl outdir;
+}
 
-foreach m in models {
-   external e;
-   e = multimetrics(directory, m, reference, out_dir);
+type Inputs {
+    string indir;
+    string reffile;
+    string agglvl;
+    string outdir;
+}
+
+file ff <"finder.out">;
+ff = get_inputs();
+Inputs iro[] = readData(ff);
+
+foreach i in iro {
+   file bcfiles[] <filesys_mapper; location = i.indir, pattern = "*">;
+   foreach f in bcfiles {
+      string fn[] = @strsplit(@f, "__root__");
+      multimetrics(fn[1], i.reffile, i.agglvl, i.outdir);
+   }
 }

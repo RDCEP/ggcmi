@@ -1,1 +1,2 @@
-midway multimetrics multimetrics_wrapper.sh
+sandyb multimetrics /project/joshuaelliott/ggcmi/bin/multimetrics/multimetrics_wrapper.sh null null null
+sandyb inputs /project/joshuaelliott/ggcmi/bin/multimetrics/inputs.sh null null null

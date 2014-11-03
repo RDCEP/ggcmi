@@ -1,204 +1,105 @@
 #!/usr/bin/env python
 
-import re, sys
-from os import sep, listdir
+# add paths
+import os, sys
+for p in os.environ['PATH'].split(':'): sys.path.append(p)
+
+# import modules
+from re import findall
+from os.path import split
 from itertools import product
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
-from numpy.ma import masked_array, corrcoef, masked
-from numpy import array, unique, where, ones, zeros, sqrt, intersect1d, ceil, double
-
-def createnc(filename, gadmindices, scen, detrmethods, corrmethods, timenames, climate, crop, gadmunits, gadmlong):
-    with nc(filename, 'w', format = 'NETCDF4_CLASSIC') as f:
-        f.createDimension('gadm0_index', len(gadmindices))
-        gadmvar = f.createVariable('gadm0_index', 'i4', 'gadm0_index')
-        gadmvar[:] = gadmindices
-        gadmvar.units = gadmunits
-        gadmvar.long_name = gadmlong
-        f.createDimension('scen', len(scen))
-        scenvar = f.createVariable('scen', 'i4', 'scen')
-        scenvar[:] = range(1, len(scen) + 1)
-        scenvar.units = 'mapping'
-        scenvar.long_name = ', '.join(scen)
-        f.createDimension('detr_methods', len(detrmethods))
-        detrvar = f.createVariable('detr_methods', 'i4', 'detr_methods')
-        detrvar[:] = range(1, len(detrmethods) + 1)
-        detrvar.units = 'mapping'
-        detrvar.long_name = ', '.join(detrmethods)
-        f.createDimension('corr_methods', len(corrmethods))
-        corrvar = f.createVariable('corr_methods', 'i4', 'corr_methods')
-        corrvar[:] = range(1, len(corrmethods) + 1)
-        corrvar.units = 'mapping'
-        corrvar.long_name = ', '.join(corrmethods)
-        f.createDimension('time_range', len(timenames))
-        timevar = f.createVariable('time_range', 'i4', 'time_range')
-        timevar[:] = range(1, len(timenames) + 1)
-        timevar.units = 'mapping'
-        timevar.long_name = ', '.join(timenames)
-        f.createDimension('climate', len(climate))
-        climatevar = f.createVariable('climate', 'i4', 'climate')
-        climatevar[:] = range(1, len(climate) + 1)
-        climatevar.units = 'mapping'
-        climatevar.long_name = ', '.join(climate)
-        f.createDimension('crop', len(crop))
-        cropvar = f.createVariable('crop', 'i4', 'crop')
-        cropvar[:] = range(1, len(crop) + 1)
-        cropvar.units = 'mapping'
-        cropvar.long_name = ', '.join(crop)
-
-def computeTSCorr(a, b):
-    return corrcoef(a, b)[0, 1]
-
-def computeVarRatio(a, b):
-    if not b.mask.all():
-        a_mean = a.mean()
-        b_std  = b.std()
-        if a_mean * b_std: # no zeros
-            return (a.std() * b.mean() / a_mean * b_std)
-        else:
-            return masked
-    else:
-        return masked
-
-def computeRMSE(a, b, c = None):
-    rmse = sqrt(((a - b) ** 2).mean())
-    if c is not None:
-        if not c.mask.all():
-            norm = c.mean()
-            if norm:
-                rmse /= norm
-    return rmse
-
-def restricttime(d, t, tref):
-    tcommon = intersect1d(t, tref)
-    ntime = len(tcommon)
-    sh = array(d.shape)
-    sh[0] = ntime
-    dout = masked_array(zeros(sh), mask = ones(sh))
-    for i in range(ntime):
-        tidx = where(t == tcommon[i])[0][0]
-        dout[i] = d[tidx]
-    return dout
-
-def short2long(cropin):
-    long_map = {'mai': 'maize', 'whe': 'wheat', 'soy': 'soybeans', 'ric': 'rice', \
-                'sor': 'sorghum', 'mil': 'millet', 'mgr': '', 'sug': 'sugarcane', \
-                'bar': 'barley', 'oat': '', 'rap': 'rapeseed', 'rye': '', \
-                'sgb': 'sugar_beet'}
-    if cropin in long_map:
-        return long_map[cropin]
-    else:
-        raise Exception('Crop not recognized')
+from numpy.ma import masked_array
+from metrics import MetricsWrapper
+from filespecs import MultimetricsFile
+from numpy import where, ones, zeros, logical_and, arange
 
 parser = OptionParser()
-parser.add_option("-b", "--batch", dest = "batch", default = "1", type = "int",
-                  help = "Batch to process")
-parser.add_option("-n", "--numbatches", dest = "num_batches", default = "64", type = "int",
-                  help = "Total number of batches")
-parser.add_option("-d", "--dir", dest = "dir", default = "", type = "string",
-                  help = "Directory in which to perform multimetrics evaluation")
-parser.add_option("-r", "--ref", dest = "ref", default = "", type = "string",
+parser.add_option("-i", "--infile", dest = "infile", default = "", type = "string",
+                  help = "Input bias-corrected file", metavar = "FILE")
+parser.add_option("-r", "--reffile", dest = "reffile", default = "", type = "string",
                   help = "Reference data netcdf file", metavar = "FILE")
-parser.add_option("-o", "--outdir", dest = "outdir", default = "", type = "string",
-                  help = "Output directory to save results")
-parser.add_option("-m", "--model", dest = "model", type = "string", 
-                  help = "Model prefix (eg. pdssat)")
+parser.add_option("-a", "--agglvl", dest = "agglvl", default = "gadm0", type = "string",
+                  help = "Aggregation level (e.g., gadm0, fpu, kg)")
+parser.add_option("-m", "--metric", dest = "metric", default = "rmse", type = "string",
+                  help = "Metric name")
+parser.add_option("-u", "--munits", dest = "munits", default = "t ha-1 yr-1", type = "string",
+                  help = "Metric units")
+parser.add_option("-l", "--mlongname", dest = "mlongname", default = "root mean squared error", type = "string",
+                  help = "Metric long name")
+parser.add_option("-o", "--outfile", dest = "outfile", default = "", type = "string",
+                  help = "Output file")
 options, args = parser.parse_args()
 
-batch, numbatches = options.batch, options.num_batches
-indir, outdir = options.dir, options.outdir
-reffile = options.ref
+infile    = options.infile
+reffile   = options.reffile
+agglvl    = options.agglvl
+metric    = options.metric
+munits    = options.munits
+mlongname = options.mlongname
+outfile   = options.outfile
 
-files = listdir(indir)
-models = [options.model]
-nmodels = len(models)
+tranges = ['full', '1980-2001', '1980-2009']
+ntimes  = len(tranges)
 
-bz = int(ceil(double(nmodels) / numbatches))
-si = bz * (batch - 1)
-ei = nmodels if batch == numbatches else min(si + bz, nmodels)
-if si >= nmodels:
-    print 'No jobs for processor to perform. Exiting . . .'
-    sys.exit()
+crop = split(infile)[1].split('_')[3]
 
-timenames = ['full', '1980-2001', '1980-2009']
+with nc(reffile) as fref:
+    aref        = fref.variables[agglvl][:]
+    aggunits    = fref.variables[agglvl].units
+    agglongname = fref.variables[agglvl].long_name
+    dtref       = fref.variables['dt'].long_name.split(', ')
+    mpref       = fref.variables['mp'].long_name.split(', ')
+    tref        = fref.variables['time'][:]
+    tref_units  = fref.variables['time'].units
 
-for m in models[si : ei]:
-    modelfiles = [f for f in files if f.startswith(m)]
+    var = 'yield_' + crop
+    if var in fref.variables:
+        yield_ref = fref.variables[var][:]
+    else:
+        print 'Crop %s unavailable in reference file %s. Exiting . . .' % (crop, reffile)
+        sys.exit()
 
-    climate = unique(array([f.split('_')[1] for f in modelfiles]))
-    crops   = unique(array([f.split('_')[3] for f in modelfiles]))
+with nc(infile) as fin:
+    ain       = fin.variables[agglvl][:]
+    scen      = fin.variables['scen'].long_name.split(', ')
+    dt        = fin.variables['dt'].long_name.split(', ')
+    mp        = fin.variables['mp'].long_name.split(', ')
+    cr        = fin.variables['cr'].long_name.split(', ')
+    yield_in  = fin.variables['yield_detrend'][:]
+    tin       = fin.variables['time'][:]
+    tin_units = fin.variables['time'].units
 
-    with nc(indir + sep + modelfiles[0]) as f:
-        gadmindices = f.variables['gadm0_index'][:]
-        gadmunits   = f.variables['gadm0_index'].units
-        gadmlong    = f.variables['gadm0_index'].long_name
-        detrmethodssim = f.variables['detr_methods'].long_name.split(', ')
-        corrmethodssim = f.variables['corr_methods'].long_name.split(', ')
-    ndetr, ncorr = len(detrmethodssim), len(corrmethodssim)
+tref += int(findall(r'\d+', tref_units)[0]) # get reference time
+tin  += int(findall(r'\d+', tin_units)[0])  # get simulation time
 
-    scen = []
-    for f in modelfiles:
-        with nc(indir + sep + f) as fm:
-            for s in fm.variables['scen'].long_name.split(', '): scen.append(s)
-    scen = unique(array(scen))
+naggs, nscen, ndt, nmp, ncr = len(ain), len(scen), len(dt), len(mp), len(cr)
 
-    outfile = outdir + sep + m + '_metrics.nc4'
-    createnc(outfile, gadmindices, scen, detrmethodssim, corrmethodssim, timenames, climate, crops, gadmunits, gadmlong)
+sh = (naggs, nscen, ndt, nmp, ncr, ntimes)
 
-    sh = (len(gadmindices), len(scen), ndetr, ncorr, len(timenames), len(climate), len(crops))
-    tscorr   = masked_array(zeros(sh), mask = ones(sh))
-    varratio = masked_array(zeros(sh), mask = ones(sh))
-    rmse     = masked_array(zeros(sh), mask = ones(sh))
+times = [tin, range(1980, 2002), range(1980, 2010)]
+dtidx, mpidx = dtref.index('none'), mpref.index('true')
 
-    for f in modelfiles:
-        climatename  = f.split('_')[1]
-        cropname     = f.split('_')[3]
-        cropnamelong = short2long(cropname)
+mobj = MetricsWrapper(metric)
+mmat = masked_array(zeros(sh), mask = ones(sh))
+for t in range(ntimes):
+    tmin = max([tin[0],  tref[0],  times[t][0]])
+    tmax = min([tin[-1], tref[-1], times[t][-1]])
 
-        climateidx = where(climate == climatename)[0][0]
-        cropidx    = where(crops == cropname)[0][0]
+    yield_refc = yield_ref[:, logical_and(tref >= tmin, tref <= tmax)]
+    yield_inc  = yield_in[:,  logical_and(tin  >= tmin, tin  <= tmax)]
 
-        with nc(indir + sep + f) as fm:
-            yieldsim = fm.variables['yield_sim'][:]
-            sc = fm.variables['scen'].long_name.split(', ')
-            yr0 = int(re.findall(r'\d+', fm.variables['time'].units)[0])
-            timesim = fm.variables['time'][:] + yr0
-        with nc(reffile) as ref:
-            gadmindicesref = ref.variables['gadm0'][:]
-            yieldref = ref.variables['yield_' + cropname][:]
-            corrmethodsref = ref.variables['dt'].long_name.split(', ')
-            yr0 = int(re.findall(r'\d+', ref.variables['time'].units)[0])
-            timeref = ref.variables['time'][:] + yr0
+    for d, m, c in product(range(ndt), range(nmp), range(ncr)):
+        for a, s in product(range(naggs), range(nscen)):
+            refidx = dtref.index(dt[d])
+            aidx = where(aref == ain[a])[0][0]
 
-        yieldref = yieldref.transpose((1, 0, 2)) # make time first dimension
-        yieldsim = yieldsim.transpose((1, 0, 2, 3, 4))
+            dref     = yield_refc[aidx, :, refidx, m]
+            drefnone = yield_refc[aidx, :, dtidx, mpidx]
+            dsim     = yield_inc[a, :, s, d, m, c]
 
-        times = [timesim, range(1980, 2002), range(1980, 2010)]
-        refnoneidx = corrmethodsref.index('none')
+            mmat[a, s, d, m, c, t] = mobj.eval(dsim, dref, drefnone, arange(tmin, tmax + 1))
 
-        for t in range(len(times)):
-            tcommon = intersect1d(timesim, intersect1d(timeref, times[t]))
-            yieldrefcommon = restricttime(yieldref, timeref, tcommon)
-            yieldsimcommon = restricttime(yieldsim, timesim, tcommon)
-            for d, c in product(range(ndetr), range(ncorr)):
-                refidx = corrmethodsref.index(detrmethodssim[d])
-                yieldrefcommondt = yieldrefcommon[:, :, refidx]
-                yieldrefcommonnone = yieldrefcommon[:, :, refnoneidx]
-                yieldsimcommondt = yieldsimcommon[:, :, :, d, c]
-                for g, s in product(range(len(gadmindices)), range(len(sc))):
-                    gidx = where(gadmindicesref == gadmindices[g])[0][0]
-                    scenidx = where(scen == sc[s])[0][0]
-                    dref, drefnone = yieldrefcommondt[:, gidx], yieldrefcommonnone[:, gidx]
-                    dsim = yieldsimcommondt[:, g, s]
-                    tscorr[g, scenidx, d, c, t, climateidx, cropidx]   = computeTSCorr(dsim, dref)
-                    varratio[g, scenidx, d, c, t, climateidx, cropidx] = computeVarRatio(dsim, dref)
-                    rmse[g, scenidx, d, c, t, climateidx, cropidx]     = computeRMSE(dsim, dref, drefnone)
-
-    with nc(outfile, 'a') as f:
-        tscorrvar = f.createVariable('tscorr', 'f4', ('gadm0_index', 'scen', 'detr_methods', 'corr_methods', 'time_range', 'climate', 'crop'), fill_value = 1e20, zlib = True, complevel = 9)
-        tscorrvar[:] = tscorr
-        varratiovar = f.createVariable('varratio', 'f4', ('gadm0_index', 'scen', 'detr_methods', 'corr_methods', 'time_range', 'climate', 'crop'), fill_value = 1e20, zlib = True, complevel = 9)
-        varratiovar[:] = varratio
-        rmsevar = f.createVariable('rmse', 'f4', ('gadm0_index', 'scen', 'detr_methods', 'corr_methods', 'time_range', 'climate', 'crop'), fill_value = 1e20, zlib = True, complevel = 9)
-        rmsevar[:] = rmse
-
+fout = MultimetricsFile(outfile, ain, agglvl, aggunits, agglongname, scen, tranges, dt, mp, cr)
+fout.append(metric, mmat, (agglvl, 'scen', 'dt', 'mp', 'cr', 'time_range'), munits, mlongname) # append to file
