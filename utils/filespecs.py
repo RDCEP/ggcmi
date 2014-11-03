@@ -11,15 +11,15 @@ class FileSpec(object):
             vvar.long_name = longname
 
 class BiasCorrectFile(FileSpec):
-    def __init__(self, filename, gadm, time, scen, dt, mp, cr):
+    def __init__(self, filename, aggs, aggname, aggunits, agglongname, time, scen, dt, mp, cr):
         super(BiasCorrectFile, self).__init__(filename)
 
         with nc(filename, 'w', format = 'NETCDF4_CLASSIC') as f:
-            f.createDimension('gadm0', len(gadm)) # create gadm
-            gadmvar = f.createVariable('gadm0', 'i4', 'gadm0')
-            gadmvar[:] = gadm
-            gadmvar.units = 'GADM L0 index'
-            gadmvar.long_name = '253 countries'
+            f.createDimension(aggname, len(aggs)) # create aggregation level
+            aggsvar = f.createVariable(aggname, 'i4', aggname)
+            aggsvar[:] = aggs
+            aggsvar.units = aggunits
+            aggsvar.long_name = agglongname
 
             f.createDimension('time', len(time)) # create time
             timevar = f.createVariable('time', 'i4', 'time')
@@ -52,14 +52,15 @@ class BiasCorrectFile(FileSpec):
             crvar.long_name = ', '.join(cr)
 
 class MultimetricsFile(FileSpec):
-    def __init__(self, filename, gadm, scen, times, climate, crop, dt, mp, cr):
+    def __init__(self, filename, aggs, aggname, aggunits, agglongname, scen, times, dt, mp, cr):
         super(MultimetricsFile, self).__init__(filename)
 
         with nc(filename, 'w', format = 'NETCDF4_CLASSIC') as f:
-            gadmvar = f.createVariable('gadm0', 'i4', 'gadm0')
-            gadmvar[:] = gadm
-            gadmvar.units = 'GADM L0 index'
-            gadmvar.long_name = '253 countries'
+            f.createDimension(aggname, len(aggs))
+            aggsvar = f.createVariable(aggname, 'i4', aggname)
+            aggsvar[:] = aggs
+            aggsvar.units = aggunits
+            aggsvar.long_name = agglongname
 
             f.createDimension('scen', len(scen))
             scenvar = f.createVariable('scen', 'i4', 'scen')
@@ -72,18 +73,6 @@ class MultimetricsFile(FileSpec):
             timesvar[:] = range(1, len(times) + 1)
             timesvar.units = 'mapping'
             timesvar.long_name = ', '.join(times)
-
-            f.createDimension('climate', len(climate))
-            climatevar = f.createVariable('climate', 'i4', 'climate')
-            climatevar[:] = range(1, len(climate) + 1)
-            climatevar.units = 'mapping'
-            climatevar.long_name = ', '.join(climate)
-
-            f.createDimension('crop', len(crop))
-            cropvar = f.createVariable('crop', 'i4', 'crop')
-            cropvar[:] = range(1, len(crop) + 1)
-            cropvar.units = 'mapping'
-            cropvar.long_name = ', '.join(crop)
 
             f.createDimension('dt', len(dt))
             dtvar = f.createVariable('dt', 'i4', 'dt')
