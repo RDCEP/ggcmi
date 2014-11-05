@@ -66,8 +66,7 @@ tref += int(findall(r'\d+', tref_units)[0])    # get reference time
 tin  += int(findall(r'\d+', tin_units)[0]) - 1 # get simulation time
 
 aggs = intersect1d(ain, aref) # find common gadm indices
-time = intersect1d(tin, tref) # find common times
-naggs, ntime, nscen = len(aggs), len(time), len(scen)
+naggs, ntime, nscen = len(aggs), len(tin), len(scen)
 if not naggs: raise Exception('No common aggregates')
 
 yield_sim_common = masked_array(zeros((naggs, len(tin), nscen)), mask = ones((naggs, len(tin), nscen)))
@@ -84,11 +83,11 @@ for g, s in product(range(naggs), range(nscen)):
     if not yref.mask.all() and not ysim.mask.all():
         for d, m, c in product(range(ndt), range(nmp), range(ncr)):
             bc = BiasCorrecter(dt[d], mp[m], cr[c])
-            yhat, R = bc.correct(ysim, yref, tin, tref)
-            yield_detr[g, :, s, d, m, c] = R
-            yield_retr[g, :, s, d, m, c] = yhat
+            detr, retr = bc.correct(ysim, yref, tin, tref)
+            yield_detr[g, :, s, d, m, c] = detr
+            yield_retr[g, :, s, d, m, c] = retr
 
 fn = outdir + sep + splitext(split(infile)[1])[0] + '.biascorr.nc4' # create file
-fout = BiasCorrectFile(fn, aggs, agglvl, aggunits, agglongname, time, scen, dt, mp, cr)
+fout = BiasCorrectFile(fn, aggs, agglvl, aggunits, agglongname, tin, scen, dt, mp, cr)
 fout.append('yield_detrend', yield_detr, (agglvl, 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average detrended yield') # append to file
 fout.append('yield_retrend', yield_retr, (agglvl, 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average retrended yield')
