@@ -91,3 +91,49 @@ class MultimetricsFile(FileSpec):
             crvar[:] = range(1, len(cr) + 1)
             crvar.units = 'mapping'
             crvar.long_name = ', '.join(cr)
+
+class ModelEnsembleFile(FileSpec):
+    def __init__(self, filename, metric, aggs, aggname, aggunits, agglongname, time, dt, mp, cr, nm):
+        super(ModelEnsembleFile, self).__init__(filename)
+
+        with nc(filename, 'w', format = 'NETCDF4_CLASSIC') as f:
+            f.createDimension(aggname, len(aggs))
+            aggsvar = f.createVariable(aggname, 'i4', aggname)
+            aggsvar[:] = aggs
+            aggsvar.units = aggunits
+            aggsvar.long_name = agglongname
+
+            f.createDimension('time', len(time))
+            timevar = f.createVariable('time', 'i4', 'time')
+            timevar[:] = time - time[0]
+            timevar.units = 'years since {:d}-01-01'.format(int(time[0]))
+            timevar.long_name = 'time'
+
+            f.createDimension('dt', len(dt))
+            dtvar = f.createVariable('dt', 'i4', 'dt')
+            dtvar[:] = range(1, len(dt) + 1)
+            dtvar.units = 'mapping'
+            dtvar.long_name = ', '.join(dt)
+
+            f.createDimension('mp', len(mp))
+            mpvar = f.createVariable('mp', 'i4', 'mp')
+            mpvar[:] = range(1, len(mp) + 1)
+            mpvar.units = 'mapping'
+            mpvar.long_name = ', '.join(mp)
+
+            f.createDimension('cr', len(cr))
+            crvar = f.createVariable('cr', 'i4', 'cr')
+            crvar[:] = range(1, len(cr) + 1)
+            crvar.units = 'mapping'
+            crvar.long_name = ', '.join(cr)
+
+            f.createDimension('nm', nm)
+            nmvar = f.createVariable('nm', 'i4', 'nm')
+            nmvar[:] = range(1, nm + 1)
+            nmvar.long_name = 'top models used'
+
+            f.createDimension('wt', 2)
+            weightedvar = f.createVariable('wt', 'i4', 'wt')
+            weightedvar[:] = [1, 2]
+            weightedvar.units = 'mapping'
+            weightedvar.long_name = 'unweighted, %s-weighted' % metric
