@@ -1,0 +1,4 @@
+sandyb detrend /project/joshuaelliott/ggcmi/bin/grid.detrend/grid.detrend_wrapper.sh null null null
+sandyb combine /project/joshuaelliott/ggcmi/bin/grid.detrend/grid.combine_wrapper.sh null null null
+sandyb inputs1 /project/joshuaelliott/ggcmi/bin/grid.detrend/inputs1.sh null null null
+sandyb inputs2 /project/joshuaelliott/ggcmi/bin/grid.detrend/inputs2.sh null null null
