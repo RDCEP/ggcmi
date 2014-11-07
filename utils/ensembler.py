@@ -92,8 +92,14 @@ class Ensembler(object):
         arrsort = arr2[:, sortidx]
         metsort = resize(metsort, (ntime, nmodels2))
 
+        metsort[arrsort.mask] = 0 # zero out masked
+        arrsort[arrsort.mask] = 0
+
+        wts = metsort.cumsum(axis = 1)
+        wts = masked_where(wts == 0, wts) # mask zeros
+
         mu[:, : nmodels2, 0] = arrsort.cumsum(axis = 1) / ones((ntime, nmodels2)).cumsum(axis = 1)
-        mu[:, : nmodels2, 1] = (arrsort * metsort).cumsum(axis = 1) / metsort.cumsum(axis = 1)
+        mu[:, : nmodels2, 1] = (arrsort * metsort).cumsum(axis = 1) / wts
 
         return mu
 
