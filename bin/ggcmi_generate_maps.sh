@@ -14,12 +14,10 @@ fi
 #____run IDL__________________
 echo "running IDL"
 
-cd /home/glotter/idl_scripts/ggcmi/  #change path to that of idl script
-
 if [ -n "$options" ]; then
-    /software/exelis/idl82/bin/idl -e "ggcmi_climate_maps,'$outputdir',$options" &> /dev/null
+    /software/exelis/idl82/bin/idl -e "ggcmi_generate_maps,'$outputdir',$options" &> /dev/null
 else
-    /software/exelis/idl82/bin/idl -e "ggcmi_climate_maps,'$outputdir'" &> /dev/null
+    /software/exelis/idl82/bin/idl -e "ggcmi_generate_maps,'$outputdir'" &> /dev/null
 fi
 
 
