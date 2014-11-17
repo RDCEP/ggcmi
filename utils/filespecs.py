@@ -183,3 +183,32 @@ class MultimetricsEnsembleFile(FileSpec):
             weightedvar[:] = range(1, len(wt) + 1)
             weightedvar.units = 'mapping'
             weightedvar.long_name = ', '.join(wt)
+
+class RescaledFile(FileSpec):
+    def __init__(self, filename, time, lat, lon, irr):
+        super(RescaledFile, self).__init__(filename)
+
+        with nc(filename, 'w', format = 'NETCDF4_CLASSIC') as f:
+            f.createDimension('time', len(time))
+            timevar = f.createVariable('time', 'i4', 'time')
+            timevar[:] = time - time[0]
+            timevar.units = 'years since {:d}-01-01'.format(int(time[0]))
+            timevar.long_name = 'time'
+
+            f.createDimension('lat', len(lat))
+            latvar = f.createVariable('lat', 'f4', 'lat')
+            latvar[:] = lat
+            latvar.units = 'degrees_north'
+            latvar.long_name = 'latitude'
+
+            f.createDimension('lon', len(lon))
+            lonvar = f.createVariable('lon', 'f4', 'lon')
+            lonvar[:] = lon
+            lonvar.units = 'degrees_east'
+            lonvar.long_name = 'longitude'
+
+            f.createDimension('irr', len(irr))
+            irrvar = f.createVariable('irr', 'i4', 'irr')
+            irrvar[:] = range(1, len(irr) + 1)
+            irrvar.units = 'mapping'
+            irrvar.long_name = ', '.join(irr)
