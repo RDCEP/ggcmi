@@ -1,2 +1,0 @@
-#!/bin/bash
-/project/joshuaelliott/ggcmi/bin/biascorrect.py -b $1 -n 128 -d /project/joshuaelliott/ggcmi/aggregations/gadm -r /project/joshuaelliott/ggcmi/faostat/faostat.1961-2012.nc4 -o /project/joshuaelliott/ggcmi/aggregations/biascorr

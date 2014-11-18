@@ -1,2 +1,0 @@
-#!/bin/bash
-/project/joshuaelliott/ggcmi/bin/aggplot.par.py -b $1 -n 128 -d /project/joshuaelliott/ggcmi/aggregations/fpu -v yield,aet,biom -a fpu,basin,region -m /project/joshuaelliott/ggcmi/masks/aggr/fpu.meta.csv,/project/joshuaelliott/ggcmi/masks/aggr/basin.meta.csv,/project/joshuaelliott/ggcmi/masks/aggr/region.meta.csv -p 5 -f png -o /project/joshuaelliott/ggcmi/aggregations/plots/fpu/
