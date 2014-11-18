@@ -33,7 +33,7 @@ class RetrenderWrapper(Retrender):
     def __init__(self, dt, mp):
         if dt == 'ffd':
             self.retrender = FFDLeftRetrender()
-        elif mp == 'true':
+        elif mp == 'true' and dt != 'none':
             self.retrender = ScaleRetrender()
         else:
             self.retrender = SumRetrender()
