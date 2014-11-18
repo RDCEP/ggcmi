@@ -15,9 +15,9 @@ fi
 echo "running IDL"
 
 if [ -n "$options" ]; then
-    /software/exelis/idl82/bin/idl -e "ggcmi_generate_maps,'$outputdir',$options" &> /dev/null
+    /software/exelis/idl82/bin/idl -e "!PATH=!PATH+':'+Expand_Path('+/project/joshuaelliott/users/glotter/idl_scripts') & ggcmi_generate_maps,'$outputdir',$options" &> /dev/null
 else
-    /software/exelis/idl82/bin/idl -e "ggcmi_generate_maps,'$outputdir'" &> /dev/null
+    /software/exelis/idl82/bin/idl -e "!PATH=!PATH+':'+Expand_Path('+/project/joshuaelliott/users//glotter/idl_scripts') & ggcmi_generate_maps,'$outputdir'" &> /dev/null
 fi
 
 
