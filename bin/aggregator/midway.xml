@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config xmlns="http://www.ci.uchicago.edu/swift/SwiftSites">
-
   <pool handle="midway">
     <execution provider="coaster" jobmanager="local:slurm" url="localhost:1"/> <!-- Scheduler to use -->
     <profile namespace="globus" key="jobsPerNode">12</profile>                 <!-- Maximum number of RunpSIMS.sh tasks per node -->
@@ -17,8 +16,7 @@
     <profile namespace="globus" key="highOverAllocation">100</profile>         <!-- Always keep these at 100 -->
     <profile namespace="globus" key="lowOverAllocation">100</profile>          <!-- Always keep these at 100 -->
     <filesystem provider="local"/>					       <!-- Use local filesytem -->
-    <workdirectory>/scratch/midway/davidkelly999/psims.work</workdirectory>    <!-- Work directory for staging in files -->
-    <scratch>/scratch/local/davidkelly999/psims.work</scratch>                 <!-- Scratch directory where tasks are run -->
+    <workdirectory>/scratch/midway/jamespc/ggcmi.work</workdirectory>          <!-- Work directory for staging in files -->
+    <scratch>/scratch/local/{env.USER}/ggcmi.work</scratch>                    <!-- Scratch directory where tasks are run -->
   </pool>
-
 </config>

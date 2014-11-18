@@ -78,7 +78,7 @@ yrtr = masked_where(isnan(yrtr), yrtr)
 
 (nlats, nlons), nt, nirr = aggmap.shape, len(time), 3 # get dimensions
 
-area    = 100 * (111.2 / 2) ** 2 * cos(pi * lat / 360) # get areas
+area    = 100 * (111.2 / 2) ** 2 * cos(pi * lat / 180) # get areas
 area    = resize(area, (nlons, nlats)).T
 areair  = resize(area * wir, (nt, nlats, nlons))
 arearf  = resize(area * wrf, (nt, nlats, nlons))

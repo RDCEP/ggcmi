@@ -228,7 +228,7 @@ for i in range(naggmasks): aggmaskobjs.append(AggMask(uqaggmasks[i]))
 nlats, nlons = len(aggmaskobjs[0].lat), len(aggmaskobjs[0].lon) # number of latitudes and longitudes
 
 lat = aggmaskobjs[0].lat # compute area as function of latitude
-area = 100 * (111.2 / 2) ** 2 * cos(pi * lat / 360)
+area = 100 * (111.2 / 2) ** 2 * cos(pi * lat / 180)
 area = resize(area, (nlons, nlats)).T
 
 tslines = open(options.tsfile).readlines() # load timestamps file
