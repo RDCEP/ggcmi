@@ -14,7 +14,7 @@ outfile=${outfile/ensemble/multimetrics}
 
 for ((i = 0; i < ${#metrics[@]}; i++)); do
    /project/joshuaelliott/ggcmi/bin/multimetrics.ensemble/multimetrics.ensemble.py -i $infile -r $reffile -a $agglvl -m "${metrics[$i]}" -u "${munits[$i]}" -l "${mlongnames[$i]}" -o tmp.nc
-   if [ i = 0 ]; then
+   if [ $i = 0 ]; then
       mv tmp.nc $outfile
    else
       ncks -h -A tmp.nc $outfile
