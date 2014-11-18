@@ -72,11 +72,11 @@ class TransformerWrapper(object):
     def __init__(self, method):
         if method == 'none':
             self.transformer = NoTransformer()
-        elif method == 'VS':
+        elif method == 'variance-scale':
             self.transformer = VSTransformer()
-        elif method == 'MS':
+        elif method == 'mean-scale':
             self.transformer = MSTransformer()
-        elif method == 'QM':
+        elif method == 'quantile-mapping':
             self.transformer = QMTransformer()
         else:
             raise Exception('Unrecognized transform method')

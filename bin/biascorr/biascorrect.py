@@ -33,7 +33,7 @@ outdir  = options.outdir
 
 dt = ['none', 'lin', 'quad', 'ma', 'ffdtr'] # methods
 mp = ['true', 'false']
-cr = ['none', 'VS', 'MS']
+cr = ['none', 'variance-scale', 'mean-scale']
 ndt, nmp, ncr = len(dt), len(mp), len(cr)
 
 crop = split(infile)[1].split('_')[3] # pull crop name from file name

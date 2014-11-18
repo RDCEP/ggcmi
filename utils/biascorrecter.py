@@ -10,7 +10,7 @@ class BiasCorrecter(object):
         self.retrender   = RetrenderWrapper(dt, mp)
         self.detrender   = DetrenderWrapper(dt, mp)
 
-        self.unrealizable = mp == 'false' and cr == 'MS'
+        self.unrealizable = mp == 'false' and cr == 'mean-scale'
 
     def correct(self, sim, obs, tsim, tobs):
         """ Corrects simulated sequence sim using observations obs,

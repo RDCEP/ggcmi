@@ -38,18 +38,21 @@ class BiasCorrectFile(FileSpec):
             dtvar[:] = range(1, len(dt) + 1)
             dtvar.units = 'mapping'
             dtvar.long_name = ', '.join(dt)
+            dtvar.note = 'detrend method'
 
             f.createDimension('mp', len(mp)) # create mp
             mpvar = f.createVariable('mp', 'i4', 'mp')
             mpvar[:] = range(1, len(mp) + 1)
             mpvar.units = 'mapping'
             mpvar.long_name = ', '.join(mp)
+            mpvar.note = 'mean-preserving method'
 
             f.createDimension('cr', len(cr)) # create cr
             crvar = f.createVariable('cr', 'i4', 'cr')
             crvar[:] = range(1, len(cr) + 1)
             crvar.units = 'mapping'
             crvar.long_name = ', '.join(cr)
+            crvar.note = 'correction method'
 
 class MultimetricsFile(FileSpec):
     def __init__(self, filename, aggs, aggname, aggunits, agglongname, scen, times, dt, mp, cr):
@@ -79,18 +82,21 @@ class MultimetricsFile(FileSpec):
             dtvar[:] = range(1, len(dt) + 1)
             dtvar.units = 'mapping'
             dtvar.long_name = ', '.join(dt)
+            dtvar.note = 'detrend method'
 
             f.createDimension('mp', len(mp))
             mpvar = f.createVariable('mp', 'i4', 'mp')
             mpvar[:] = range(1, len(mp) + 1)
             mpvar.units = 'mapping'
             mpvar.long_name = ', '.join(mp)
+            mpvar.note = 'mean-preserving method'
 
             f.createDimension('cr', len(cr))
             crvar = f.createVariable('cr', 'i4', 'cr')
             crvar[:] = range(1, len(cr) + 1)
             crvar.units = 'mapping'
             crvar.long_name = ', '.join(cr)
+            crvar.note = 'correction method'
 
 class ModelEnsembleFile(FileSpec):
     def __init__(self, filename, metric, aggs, aggname, aggunits, agglongname, time, dt, mp, cr, nm):
@@ -114,18 +120,21 @@ class ModelEnsembleFile(FileSpec):
             dtvar[:] = range(1, len(dt) + 1)
             dtvar.units = 'mapping'
             dtvar.long_name = ', '.join(dt)
+            dtvar.note = 'detrend method'
 
             f.createDimension('mp', len(mp))
             mpvar = f.createVariable('mp', 'i4', 'mp')
             mpvar[:] = range(1, len(mp) + 1)
             mpvar.units = 'mapping'
             mpvar.long_name = ', '.join(mp)
+            mpvar.note = 'mean-preserving method'
 
             f.createDimension('cr', len(cr))
             crvar = f.createVariable('cr', 'i4', 'cr')
             crvar[:] = range(1, len(cr) + 1)
             crvar.units = 'mapping'
             crvar.long_name = ', '.join(cr)
+            crvar.note = 'correction method'
 
             f.createDimension('nm', nm)
             nmvar = f.createVariable('nm', 'i4', 'nm')
@@ -160,18 +169,21 @@ class MultimetricsEnsembleFile(FileSpec):
             dtvar[:] = range(1, len(dt) + 1)
             dtvar.units = 'mapping'
             dtvar.long_name = ', '.join(dt)
+            dtvar.note = 'detrend method'
 
             f.createDimension('mp', len(mp))
             mpvar = f.createVariable('mp', 'i4', 'mp')
             mpvar[:] = range(1, len(mp) + 1)
             mpvar.units = 'mapping'
             mpvar.long_name = ', '.join(mp)
+            mpvar.note = 'mean-preserving method'
 
             f.createDimension('cr', len(cr))
             crvar = f.createVariable('cr', 'i4', 'cr')
             crvar[:] = range(1, len(cr) + 1)
             crvar.units = 'mapping'
             crvar.long_name = ', '.join(cr)
+            crvar.note = 'correction method'
 
             f.createDimension('nm', nm)
             nmvar = f.createVariable('nm', 'i4', 'nm')
