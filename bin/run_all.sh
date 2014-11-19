@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# =================================
+# GGCMI PHASE 1 PROCESSING PIPELINE
+# =================================
+
 dir=$PWD
 
 # Aggregator
@@ -25,5 +29,9 @@ cd /project/joshuaelliott/ggcmi/bin/multimetrics.ensemble
 # Rescaled
 cd /project/joshuaelliott/ggcmi/bin/rescaler
 ./rescaler.sh
+
+# Downscaled
+cd /project/joshuaelliott/ggcmi/bin/downscaler
+./downscaler.sh
 
 cd $dir
