@@ -1,4 +1,4 @@
 The QC script is typically run as something like
-./ggcmi.QC.py -d ../AgMIP.output/ -m "*" -w "*" -c "maize,soy,wheat,rice,sorghum,millet" -s /home/joshuaelliott/public_html/ggcmi-summaries/
+./ggcmi.QC.py -d /project/ggcmi/AgMIP.output/ -m "*" -w "*" -c "maize,soy,wheat,rice,sorghum,millet" -s /home/joshuaelliott/public_html/ggcmi-summaries/
 ..
-./ggcmi.QC.py -d ../AgMIP.output/ -m PRYSBI2 -w "*" -c "maize,soy,wheat,rice" -s /home/joshuaelliott/public_html/ggcmi-summaries/
+./ggcmi.QC.py -d /project/ggcmi/AgMIP.output/ -m PRYSBI2 -w "*" -c "maize,soy,wheat,rice" -s /home/joshuaelliott/public_html/ggcmi-summaries/
