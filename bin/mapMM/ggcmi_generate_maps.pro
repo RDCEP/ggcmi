@@ -18,7 +18,7 @@ pro ggcmi_generate_maps,output_dir,PLOT_METRIC=plot_metric,WEIGHTING_METRIC=weig
 ;projection:       type of map projection       -->  options: 0=aitoff, 1=albers, 2=azimuthal, 3=conic, 4=cylindrical, 5=gnomic, 6=goodeshomolosine, 7=hammer, 8=lambert, 9=mercator, 10=miller_cylindrical, 11=mollweide, 12=orthographic, 13=robinson, 14=satellite, 15=sinusoidal, 16=stereographic, 17=traverse_mercator (default: projection=13)
 
 ;define paths
-  path_ggcmi='/project/joshuaelliott/ggcmi/processed/'
+  path_ggcmi='/project/ggcmi/AgMIP.output/processed/'
   path_plot=output_dir;path_plot='/home/glotter/ag_impacts/plots/ggcmi/maps/'
   
   ;Add the following line to IDL when starting:
