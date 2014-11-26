@@ -15,3 +15,6 @@ echo $root/AgMIP.output/processed/biascorr/fpu/iizumi $root/AgMIP.output/process
 # kg
 echo $root/AgMIP.output/processed/biascorr/kg/ray $root/AgMIP.output/processed/multimetrics/kg/ray kg $root/AgMIP.output/processed/modelensemble/kg/ray
 echo $root/AgMIP.output/processed/biascorr/kg/iizumi $root/AgMIP.output/processed/multimetrics/kg/iizumi kg $root/AgMIP.output/processed/modelensemble/kg/iizumi
+
+# global
+echo $root/AgMIP.output/processed/biascorr/global/faostat $root/AgMIP.output/processed/multimetrics/global/faostat global $root/AgMIP.output/processed/modelensemble/global/faostat

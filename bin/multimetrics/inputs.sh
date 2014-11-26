@@ -15,3 +15,6 @@ echo $root/AgMIP.output/processed/biascorr/fpu/iizumi $root/AgMIP.input/other.in
 # kg
 echo $root/AgMIP.output/processed/biascorr/kg/ray $root/AgMIP.input/other.inputs/reference/ray/ray.1961-2008.kg.nc4 kg $root/AgMIP.output/processed/multimetrics/kg/ray
 echo $root/AgMIP.output/processed/biascorr/kg/iizumi $root/AgMIP.input/other.inputs/reference/iizumi/iizumi.1982-2006.kg.nc4 kg $root/AgMIP.output/processed/multimetrics/kg/iizumi
+
+# global
+echo $root/AgMIP.output/processed/biascorr/global/faostat $root/AgMIP.input/other.inputs/reference/faostat/faostat.1961-2012.global.nc4 global $root/AgMIP.output/processed/multimetrics/global/faostat

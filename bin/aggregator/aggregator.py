@@ -29,9 +29,8 @@ def createnc(filename, time, tunits, scens, rdata, rnames, runits, rlongnames):
     irrvar.units = 'mapping'
     irrvar.long_name = 'ir, rf, sum'
     for i in range(len(rnames)): # index variables
-        rname = rnames[i] + '_index'
-        f.createDimension(rname, len(rdata[i]))
-        rvar = f.createVariable(rname, 'i4', (rname,))
+        f.createDimension(rnames[i], len(rdata[i]))
+        rvar = f.createVariable(rnames[i], 'i4', rnames[i])
         rvar[:] = rdata[i]
         rvar.units = runits[i]
         rvar.long_name = rlongnames[i]
@@ -94,13 +93,7 @@ class AggMask(object):
             self.dat['longnames'].append(var.long_name if 'long_name' in var.ncattrs() else '')
             self.dat['data'].append(var[:])
         self.lat = f.variables['lat'][:] # load latitude and longitude
-        self.lon = f.variables['lon'][:]
-        nlats = self.lat.size
-        nlons = self.lon.size
-        self.dat['names'].append('global') # add global mask as a trick
-        self.dat['units'].append('')
-        self.dat['longnames'].append('')
-        self.dat['data'].append(masked_array(zeros((nlats, nlons)), mask = zeros((nlats, nlons))))
+        self.lon = f.variables['lon'][:]        
         f.close()
     def names(self):     return self.dat['names']
     def units(self):     return self.dat['units']
@@ -115,7 +108,6 @@ class AggMask(object):
         return ud
 
 # parse inputs
-print str(sys.argv)
 parser = OptionParser()
 parser.add_option("-b", "--batch", dest = "batch", default = "1", type = "int",
                   help = "Batch to process")
@@ -199,10 +191,10 @@ if si >= nfiles: # no work for processor to do
     sys.exit()
 
 totfiles = totfiles[si : ei] # select files for batch
-nfiles = len(totfiles)
+nfiles   = len(totfiles)
 
 uqcrops = list(set([f[0].split(sep)[2].capitalize() for f in totfiles])) # find unique crops (capitalize first letters)
-ncrops = len(uqcrops)
+ncrops  = len(uqcrops)
 
 landmasksir = [0] * ncrops # load weight masks
 landuseir = nc(options.landuseir) # land use IR mask
@@ -220,14 +212,14 @@ for i in range(ncrops):
 landuserf.close()
 
 uqaggmasks = list(set([f[1] for f in totfiles])) # find unique aggregration masks
-naggmasks = len(uqaggmasks)
+naggmasks  = len(uqaggmasks)
 
 aggmaskobjs = [] # load aggregration masks
 for i in range(naggmasks): aggmaskobjs.append(AggMask(uqaggmasks[i]))
 
 nlats, nlons = len(aggmaskobjs[0].lat), len(aggmaskobjs[0].lon) # number of latitudes and longitudes
 
-lat = aggmaskobjs[0].lat # compute area as function of latitude
+lat  = aggmaskobjs[0].lat # compute area as function of latitude
 area = 100 * (111.2 / 2) ** 2 * cos(pi * lat / 180)
 area = resize(area, (nlons, nlats)).T
 
@@ -246,14 +238,14 @@ for i in range(nfiles): # iterate over subdirectories
     aggmask = totfiles[i][1]
     outdir = totfiles[i][2]
     print 'PROCESSING INDEX = ' + str(si + i) + ': DIRECTORY ' + str(rootdir + sep + dir) + ' . . .'
-    
+
     ts = datetime.fromtimestamp(getmtime(rootdir + sep + dir)).strftime('%Y-%m-%d %H:%M')
     tsfile.write(dir + ' ' + ts + '\n')
     if dir in tsdic: # check if file has been modified
         if ts == tsdic[dir]: # same timestamp means already processed
             print 'Timestamp has not changed. Skipping directory . . .'
             continue
-    
+
     cropname = dir.split(sep)[2] # crop
     cropabbr = getcropabbr(cropname)
     cidx = uqcrops.index(cropname.capitalize())
@@ -314,13 +306,12 @@ for i in range(nfiles): # iterate over subdirectories
     filename.remove(filename[3])
     filename.remove(filename[3])
     filename = outdir + sep + '_'.join(filename) # save in output directory
-    createnc(filename, time, tunits, scens, audata[: -1], anames[: -1], aunits[: -1], alongnames[: -1]) # create nc file
+    createnc(filename, time, tunits, scens, audata, anames, aunits, alongnames) # create nc file
 
     print 'Preallocating . . .'
     t0 = tm.time()
     averages = [0] * nmasks; areas = [0] * nmasks # final averages and areas
-    #print "AREAS=" + str(areas)
-    aselect = [0] * nmasks; vartmp = [0] * nmasks
+    aselect  = [0] * nmasks; vartmp = [0] * nmasks
     for j in range(nmasks):
         sz = audata[j].size
         averages[j] = masked_array(zeros((nv, sz, nt, ns, 3))) # preallocate
@@ -335,7 +326,7 @@ for i in range(nfiles): # iterate over subdirectories
     vunits = [''] * nv
     for j in range(len(scens_full)): # iterate over scenarios
         scen_irr = scens_full[j]
-        
+
         scen_irr_split = scen_irr.split('_') # find scenario and irr
         if len(scen_irr_split) == 2:
             sidx = scens.index(scen_irr_split[0])
@@ -393,10 +384,10 @@ for i in range(nfiles): # iterate over subdirectories
 	        areas[k][m, :, sidx, iidx] = (weight * area * aselect[k][m] * yieldmask).sum(axis = 2).sum(axis = 1)
 	        areas[k] = masked_where(areas[k] == 0, areas[k])
         print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
-         
+
         for k in range(nv): # iterate over variables
             t0 = tm.time()
-            
+
             varfile = findfile(files, scen_irr, vars[k])
             if not len(varfile): continue
             print 'Processing', varfile, '. . .'
@@ -418,17 +409,16 @@ for i in range(nfiles): # iterate over subdirectories
                     vsum = vartmp[m].sum(axis = 2).sum(axis = 1)
                     averages[m][k, :, t, sidx, iidx] = vsum / areas[m][:, t, sidx, iidx]
             print '  Elapsed time =', tm.time() - t0, 'seconds . . .'
-    
+
     print 'Writing file . . .'
     with nc(filename, 'a', format = 'NETCDF4_CLASSIC') as f: # append variables
         for j in range(nmasks):
             name = anames[j]
-            dims = ('time', 'scen', 'irr')
+            dims = (name, 'time', 'scen', 'irr')
             area1, area2 = areas[j][:, :, :, 0], areas[j][:, :, :, 1]
 	    area1[logical_and(area1.mask, ~area2.mask)] = 0.
             area2[logical_and(area2.mask, ~area1.mask)] = 0. 
             areas[j][:, :, :, 2] = area1 + area2 # sum area
-            if name != 'global': dims = (name + '_index',) + dims
             areav = f.createVariable('area_' + name, 'f4', dims, zlib = True, complevel = 9)
             areav[:] = areas[j].squeeze()
             areav.units = 'hectares'

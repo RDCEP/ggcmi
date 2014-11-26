@@ -55,7 +55,7 @@ with nc(reffile) as fref: # pull reference data
         sys.exit()
 
 with nc(infile) as fin: # pull input data
-    ain       = fin.variables[agglvl + '_index'][:]
+    ain       = fin.variables[agglvl][:]
     tin       = fin.variables['time'][:]
     tin_units = fin.variables['time'].units
     scen      = fin.variables['scen'].long_name.split(', ')

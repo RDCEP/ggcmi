@@ -1,8 +1,8 @@
 type file;
 
 app (file o) aggregator (string directory, string model, string weather, string crop, string landuse_ir, 
-                             string landuse_rf, string aggregation_mask, string timestamp, string growing_dir,
-                             string output_dir) 
+                         string landuse_rf, string aggregation_mask, string timestamp, string growing_dir,
+                         string output_dir) 
 {
    aggregator "-b" "1" 
               "-n" "1"
@@ -16,7 +16,7 @@ app (file o) aggregator (string directory, string model, string weather, string 
               "-t" timestamp
               "-g" growing_dir
               "-o" output_dir
-              stdout=@o;
+              stdout = @o;
 }
 
 string directory  = arg("d");
@@ -33,7 +33,7 @@ string out_dir[]  = strsplit(arg("o"), ",");
 foreach m in models {
    foreach w in weather {
       foreach c in crop {
-         foreach a,idx in agg_mask {
+         foreach a, idx in agg_mask {
             file logfile <single_file_mapper; file=strcat("logs/", m, ".", w, ".", c, ".mask_", idx, ".txt")>;
             logfile = aggregator(directory, m, w, c, landuse_ir, landuse_rf, agg_mask[idx], timestamp, grow_dir, out_dir[idx]);
          }
