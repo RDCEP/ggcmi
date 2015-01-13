@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# add paths
+import os, sys
+for p in os.environ['PATH'].split(':'): sys.path.append(p)
+
 # import modules
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
@@ -30,7 +34,9 @@ parser.add_option("-w", "--weights", dest = "weights", default = "none", type = 
 parser.add_option("-a", "--agg", dest = "agg", default = "", type = "string",
                   help = "Aggregation file: var1, ..., varN")
 parser.add_option("-t", "--type", dest = "type", default = "mean", type = "string",
-                  help = "Aggregation type (mean or sum)")                  
+                  help = "Aggregation type (mean or sum)")
+parser.add_option("--calc_area", action = "store_true", dest = "calcarea", default = False,
+                  help = "Flag to indicate weights are fractions (optional)")
 parser.add_option("-o", "--output", dest = "output", default = "", type = "string",
                   help = "Output file", metavar = "FILE")
 options, args = parser.parse_args()
@@ -78,7 +84,7 @@ for i in range(nmasks):
     dims = (anames[i] + '_index', 'time')
     for j in range(nvars):
         avev = f.createVariable(ivars[j] + '_' + anames[i], 'f4', dims, fill_value = 1e20, zlib = True, complevel = 9)
-        avev[:] = avobj.av(var[j], adata[i], lats, weights)
+        avev[:] = avobj.av(var[j], adata[i], lats, weights, calcarea = options.calcarea)
         avev.units = vunits[j]
         avev.long_name = ' '.join([options.type, anames[i], ivars[j]])
 f.close()
