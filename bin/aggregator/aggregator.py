@@ -42,13 +42,9 @@ def filterfiles(listing):
             files.append(l)
     return files
 def findfile(files, scen_irr, var):
-    scen = scen_irr.split('_')
     for f in files:
-        m = var in f
-        if m:
-            for s in scen:
-                m = m and ('_' + s + '_' in f)
-            if m: return f
+        if '_%s_%s_' % (scen_irr, var) in f:
+            return f
     return []
 def getcropabbr(crop):
     cmap = {'maize': 'mai', 'wheat': 'whe', 'soy': 'soy', 'rice': 'ric', \
