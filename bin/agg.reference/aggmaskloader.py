@@ -19,7 +19,7 @@ class AggMaskLoader(object):
         self.dat = {'names': [], 'units': [], 'longnames': [], 'data': []}
 
         for v in varnames:
-            if v != 'global':
+            if v != 'global' or (v == 'global' and 'global' in f.variables):
                 var = f.variables[v]
                 self.dat['names'].append(v)
                 self.dat['units'].append(var.units if 'units' in var.ncattrs() else '')

@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 
+# add paths
+import os, sys
+for p in os.environ['PATH'].split(':'): sys.path.append(p)
+
 # import modules
+from numpy import isnan, resize
+from numpy.ma import masked_where
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
 from aggmaskloader import AggMaskLoader
@@ -13,11 +19,6 @@ def createAggFile(filename, time, tunits, adata, anames, aunits, alongnames):
         timevar[:] = time
         timevar.units = tunits
         timevar.long_name = 'time'
-        f.createDimension('irr', 3)
-        irrvar = f.createVariable('irr', 'i4', ('irr',))
-        irrvar[:] = range(1, 4)
-        irrvar.units = 'mapping'
-        irrvar.long_name = 'ir, rf, sum'
         for i in range(len(anames)):
             rname = anames[i] + '_index'
             f.createDimension(rname, len(adata[i]))
@@ -28,32 +29,26 @@ def createAggFile(filename, time, tunits, adata, anames, aunits, alongnames):
 
 # parse inputs
 parser = OptionParser()
-parser.add_option("--inputir", dest = "inputir", default = "", type = "string",
-                  help = "Irrigated file to aggregate: var")
-parser.add_option("--inputrf", dest = "inputrf", default = "", type = "string",
-                  help = "Rainfed file to aggregate: var")
-parser.add_option("--weightsir", dest = "weightsir", default = "none", type = "string",
-                  help = "Irrigated weights file: var (none = all weights are one)")
-parser.add_option("--weightsrf", dest = "weightsrf", default = "none", type = "string",
-                  help = "Rainfed weights file: var (none = all weights are one)")
+parser.add_option("-i", "--input", dest = "input", default = "", type = "string",
+                  help = "File to aggregate: var1, ..., varN")
+parser.add_option("-w", "--weights", dest = "weights", default = "none", type = "string",
+                  help = "Weights file: var (none = all weights are one)")
 parser.add_option("-a", "--agg", dest = "agg", default = "", type = "string",
                   help = "Aggregation file: var1, ..., varN")
 parser.add_option("-t", "--type", dest = "type", default = "mean", type = "string",
-                  help = "Aggregation type (mean or sum)")                  
+                  help = "Aggregation type (mean or sum)")
+parser.add_option("--calc_area", action = "store_true", dest = "calcarea", default = False,
+                  help = "Flag to indicate weights are fractions (optional)")
 parser.add_option("-o", "--output", dest = "output", default = "", type = "string",
                   help = "Output file", metavar = "FILE")
 options, args = parser.parse_args()
 
 if not options.type in ['mean', 'sum']: raise Exception('Invalid type')
 
-weightsir = None # load weights
-if not options.weightsir in ['none', 'None', '']:
-    wfile, wvar = [w.strip() for w in options.weightsir.split(':')]
-    with nc(wfile) as f: weightsir = f.variables[wvar][:]
-weightsrf = None
-if not options.weightsrf in ['none', 'None', '']:
-    wfile, wvar = [w.strip() for w in options.weightsrf.split(':')]
-    with nc(wfile) as f: weightsrf = f.variables[wvar][:]
+weights = None # load weights
+if not options.weights in ['none', 'None', '']:
+    wfile, wvar = [w.strip() for w in options.weights.split(':')]
+    with nc(wfile) as f: weights = f.variables[wvar][:]
 
 afile, avars = [a.strip() for a in options.agg.split(':')] # load aggregation masks
 avars = [v.strip() for v in avars.split(',')]
@@ -65,20 +60,21 @@ aunits     = aggloader.units()
 alongnames = aggloader.longnames()
 nmasks     = len(audata)
 
-irfile, irvarname = [i.strip() for i in options.inputir.split(':')] # load input data
-with nc(irfile) as f:
+ifile, ivars = [i.strip() for i in options.input.split(':')] # load input data
+ivars = [v.strip() for v in ivars.split(',')]
+nvars = len(ivars)
+var = [0] * nvars; vunits = [0] * nvars
+with nc(ifile) as f:
     lats = f.variables['lat'][:]
     t = f.variables['time']
     time = t[:]
     tunits = t.units if 'units' in t.ncattrs() else ''
-    v = f.variables[irvarname]
-    varir = v[:]
-    vunits = v.units if 'units' in v.ncattrs() else ''
-rffile, rfvarname = [i.strip() for i in options.inputrf.split(':')]
-with nc(rffile) as f:
-    varrf = f.variables[rfvarname][:]
-
-varname = irvarname.split('_')[0]
+    for i in range(nvars):
+        v = f.variables[ivars[i]]
+        var[i] = v[:]
+        var[i] = masked_where(isnan(var[i]), var[i]) # mask out NaNs
+        var[i].mask = resize(var[i].mask, var[i].shape) # resize mask if necessary
+        vunits[i] = v.units if 'units' in v.ncattrs() else ''
 
 createAggFile(options.output, time, tunits, audata, anames, aunits, alongnames)
 f = nc(options.output, 'a') # open file for appending
@@ -89,9 +85,10 @@ else:
     avobj = SumAverager()
 
 for i in range(nmasks):
-    dims = (anames[i] + '_index', 'time', 'irr')
-    avev = f.createVariable(varname + '_' + anames[i], 'f4', dims, fill_value = 1e20, zlib = True, complevel = 9)
-    avev[:] = avobj.combine(varir, varrf, adata[i], lats, weightsir, weightsrf)
-    avev.units = vunits
-    avev.long_name = ' '.join([options.type, anames[i], varname])
+    dims = (anames[i] + '_index', 'time')
+    for j in range(nvars):
+        avev = f.createVariable(ivars[j] + '_' + anames[i], 'f4', dims, fill_value = 1e20, zlib = True, complevel = 9)
+        avev[:] = avobj.av(var[j], adata[i], lats, weights, calcarea = options.calcarea)
+        avev.units = vunits[j]
+        avev.long_name = ' '.join([options.type, anames[i], ivars[j]])
 f.close()

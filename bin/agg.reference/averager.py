@@ -41,12 +41,12 @@ class Averager(object):
         chunksize = sz / numchunks # chunk data to reduce memory usage
 
         sumv = ma.masked_array(zeros((sz, nt)), mask = ones((sz, nt)))
-        
+
         maxchunksize = max(chunksize, chunksize + sz - chunksize * numchunks)
-        
+
         aselect = ma.zeros((maxchunksize, nlats, nlons), dtype = bool) # preallocate
-        vartmp = zeros((maxchunksize, nlats, nlons))
-        
+        vartmp = ma.zeros((maxchunksize, nlats, nlons))
+
         cnt = 0
         for i in range(numchunks):
             startidx = cnt
@@ -61,13 +61,14 @@ class Averager(object):
             aselect[:] = 0 # clear
             for j in range(szc): aselect[j] = (agg == aggvalsc[j])
             ridx, latidx, lonidx = where(aselect)
-        
+
             vartmp[:] = 0 # clear
+            vartmp.mask = ones(vartmp.shape)
             for t in range(nt):
-                vartmp[ridx, latidx, lonidx] = var[t, latidx, lonidx]     * \
-                                               varmask[t, latidx, lonidx] * \
-                                               weights[latidx, lonidx]    * \
-                                               area[latidx, lonidx]       * \
+                vartmp[ridx, latidx, lonidx] = var[t, latidx, lonidx]        * \
+                                               varmask[t, latidx, lonidx]    * \
+                                               weights[latidx, lonidx]       * \
+                                               area[latidx, lonidx]          * \
                                                aselect[ridx, latidx, lonidx]
                 sumv[startidx : endidx, t] = vartmp.sum(axis = 2).sum(axis = 1)[: szc]
 
@@ -77,7 +78,7 @@ class Averager(object):
 
     def areas(self, var, agg, area, weights, mask = None):
         aggvals = self.__uniquevals(agg)
-        varmask = logical_not(var.mask) # use variable mask
+        varmask = logical_not(var.mask) if ma.isMaskedArray(var) else ones(var.shape) # use variable mask
         if not mask is None: varmask = logical_and(varmask, mask) # additional mask
         areas = zeros((len(aggvals), len(var)))
         for i in range(len(aggvals)):
