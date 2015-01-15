@@ -1,5 +1,5 @@
 import abc, numpy.ma as ma
-from numpy import zeros, ones, where, resize, cos, pi, logical_not, logical_and
+from numpy import zeros, ones, where, resize, cos, pi, logical_not, logical_and, newaxis
 
 class Averager(object):
     __metaclass__ = abc.ABCMeta
@@ -9,22 +9,35 @@ class Averager(object):
 
     def combine(self, var1, var2, agg, lats, weights1 = None, weights2 = None, calcarea = True, mask1 = None, mask2 = None, numchunks = 1):
         nt, nlats, nlons = var1.shape
-        if weights1 is None: weights1 = ones((nlats, nlons)) # weights
-        if weights2 is None: weights2 = ones((nlats, nlons))
+
+        if weights1 is None: # weights
+            weights1 = ones((nt, nlats, nlons))
+        elif len(weights1.shape) == 2:
+            weights1 = resize(weights1, (nt, nlats, nlons))
+        if weights2 is None:
+            weights2 = ones((nt, nlats, nlons))
+        elif len(weights2.shape) == 2:
+            weights2 = resize(weights2, (nt, nlats, nlons))
+
         if calcarea: # area
             area = self.area(lats, nlats, nlons)
         else:
             area = ones((nlats, nlons))
+
         av1 = self.av(var1, agg, lats, weights = weights1, calcarea = calcarea, mask = mask1, numchunks = numchunks)
         av2 = self.av(var2, agg, lats, weights = weights2, calcarea = calcarea, mask = mask2, numchunks = numchunks)
+
         area1 = self.areas(var1, agg, area, weights1, mask = mask1)
         area2 = self.areas(var2, agg, area, weights2, mask = mask2)
-        sz = len(av1)
+
         totarea = area1 + area2
         totarea = ma.masked_where(totarea == 0, totarea)
+
+        sz = len(av1)
         totav = ma.masked_array(zeros((sz, nt, 3)), mask = ones((sz, nt, 3)))
         totav[:, :, 0], totav[:, :, 1] = av1, av2
         totav[:, :, 2] = (area1 * av1 + area2 * av2) / totarea
+
         return totav
 
     def sum(self, var, agg, area, weights, mask = None, numchunks = 1):
@@ -45,7 +58,7 @@ class Averager(object):
         maxchunksize = max(chunksize, chunksize + sz - chunksize * numchunks)
 
         aselect = ma.zeros((maxchunksize, nlats, nlons), dtype = bool) # preallocate
-        vartmp = ma.zeros((maxchunksize, nlats, nlons))
+        vartmp  = ma.zeros((maxchunksize, nlats, nlons))
 
         cnt = 0
         for i in range(numchunks):
@@ -67,7 +80,7 @@ class Averager(object):
             for t in range(nt):
                 vartmp[ridx, latidx, lonidx] = var[t, latidx, lonidx]        * \
                                                varmask[t, latidx, lonidx]    * \
-                                               weights[latidx, lonidx]       * \
+                                               weights[t, latidx, lonidx]    * \
                                                area[latidx, lonidx]          * \
                                                aselect[ridx, latidx, lonidx]
                 sumv[startidx : endidx, t] = vartmp.sum(axis = 2).sum(axis = 1)[: szc]
@@ -78,14 +91,17 @@ class Averager(object):
 
     def areas(self, var, agg, area, weights, mask = None):
         aggvals = self.__uniquevals(agg)
+
         varmask = logical_not(var.mask) if ma.isMaskedArray(var) else ones(var.shape) # use variable mask
-        if not mask is None: varmask = logical_and(varmask, mask) # additional mask
+        if not mask is None: varmask = logical_and(varmask, logical_not(mask)) # additional mask
+
         areas = zeros((len(aggvals), len(var)))
         for i in range(len(aggvals)):
             warea = weights * area * (agg == aggvals[i])
-            latidx, lonidx = where(warea)
-            areas[i] = (warea[latidx, lonidx] * varmask[:, latidx, lonidx]).sum(axis = 1)
+            areas[i] = (warea * varmask).sum(axis = 2).sum(axis = 1)
+
         areas = ma.masked_where(areas == 0, areas)
+
         return areas
 
     def area(self, lats, nlats, nlons):
@@ -100,23 +116,38 @@ class Averager(object):
 
 class SumAverager(Averager):    
     def av(self, var, agg, lats, weights = None, calcarea = True, mask = None, numchunks = 1):
-        _, nlats, nlons = var.shape
-        if weights is None: weights = ones((nlats, nlons)) # weights
+        nt, nlats, nlons = var.shape
+
+        if weights is None: # weights
+            weights = ones((nt, nlats, nlons))
+        elif len(weights.shape) == 2:
+            weights = resize(weights, (nt, nlats, nlons))
+
         if calcarea: # area
             area = self.area(lats, nlats, nlons)
         else:
             area = ones((nlats, nlons))
+
         avv = self.sum(var, agg, area, weights, mask = mask, numchunks = numchunks)
+
         return avv
 
 class MeanAverager(Averager):
     def av(self, var, agg, lats, weights = None, calcarea = True, mask = None, numchunks = 1):
         nt, nlats, nlons = var.shape
-        if weights is None: weights = ones((nlats, nlons)) # weights
+
+        if weights is None: # weights
+            weights = ones((nt, nlats, nlons))
+        elif len(weights.shape) == 2:
+            weights = resize(weights, (nt, nlats, nlons))
+
         if calcarea: # area
             area = self.area(lats, nlats, nlons)
         else:
             area = ones((nlats, nlons))
+
         avv = self.sum(var, agg, area, weights, mask = mask, numchunks = numchunks)
+
         areas = self.areas(var, agg, area, weights, mask = mask)
+
         return avv / areas

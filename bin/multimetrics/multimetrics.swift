@@ -22,7 +22,7 @@ Inputs iro[] = readData(ff);
 foreach i in iro {
    file bcfiles[] <filesys_mapper; location = i.indir, pattern = "*">;
    foreach f in bcfiles {
-      string fn[] = @strsplit(@f, "__root__");
+      string fn[] = strsplit(@f, "file://localhost/");
       multimetrics(fn[1], i.reffile, i.agglvl, i.outdir);
    }
 }
