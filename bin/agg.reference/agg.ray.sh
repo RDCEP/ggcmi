@@ -16,45 +16,64 @@ outdir=/project/joshuaelliott/ggcmi/bin/agg.reference
 cpshort=(mai ric soy whe)
 cpfull=(maize rice soy wheat)
 
-# masks to process
-msks=(fpu kg global)
+# aggregation masks to process
+amsks=(fpu kg global)
 
-for ((i = 0; i < ${#msks[@]}; i++)); do # masks
-   # mask name
-   msk=${msks[$i]}
+# weight masks to process
+wmsks=(fixed dynamic)
 
-   # filename
-   outfile=$outdir/ray.1961-2008.${msk}.nc4
+for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
+   # aggregation mask name
+   amsk=${amsks[$i]}
 
-   for ((j = 0; j < ${#cpshort[@]}; j++)); do # crops
-      # crop short name
-      cs=${cpshort[$j]}
+   for ((j = 0; j < ${#wmsks[@]}; j++)); do # weight masks
+      # weight mask name
+      wmsk=${wmsks[$j]}
 
-      # crop full name
-      cf=${cpfull[$j]}
-
-      # aggregate
-      echo Aggregating crop $cf to $msk level . . .
-      ./agg.single.py -i $refdir/${cs}_weight_ray_1961-2008.nc4:yield_${cs} \
-                      -a $mskdir/${msk}.mask.nc4:$msk                       \
-                      -t mean                                               \
-                      -w $wtsdir/${cf}.nc4:sum                              \
-                      -o temp.nc4
-
-      # clean data
-      ncrename -O -h -v ${msk}_index,$msk temp.nc4 temp.nc4
-      ncrename -O -h -v yield_${cs}_${msk},yield_${cs} temp.nc4 temp.nc4
-      ncap2 -O -h -s "time=time-1" temp.nc4 temp.nc4
-      ncatted -O -h -a units,time,m,c,"years since 1961-01-01" temp.nc4 temp.nc4
-
-      if [ $j = 0 ]; then
-         mv temp.nc4 $outfile
+      # filename
+      if [ $wmsk = fixed ]; then
+         outfile=$outdir/ray.1961-2008.${amsk}.nc4
       else
-         ncks -h -A temp.nc4 $outfile
-         rm temp.nc4
+         outfile=$outdir/ray.1961-2008.${amsk}.dynamic.nc4
       fi
-   done
 
-   nccopy -d9 -k4 $outfile $outfile.2
-   mv $outfile.2 $outfile
+      for ((k = 0; k < ${#cpshort[@]}; k++)); do # crops
+         # crop short name
+         cs=${cpshort[$k]}
+
+         # crop full name
+         cf=${cpfull[$k]}
+
+         # weight mask file
+         if [ $wmsk = fixed ]; then
+            wfile=${cf}.nc4
+         else
+            wfile=${cf}.ray.nc4
+         fi
+
+         # aggregate
+         echo Aggregating crop $cf to $amsk level with $wmsk weights . . .
+         ./agg.single.py -i $refdir/${cs}_weight_ray_1961-2008.nc4:yield_${cs} \
+                         -a $mskdir/${amsk}.mask.nc4:$amsk                     \
+                         -t mean                                               \
+                         -w $wtsdir/$wfile:sum                                 \
+                         -o temp.nc4
+
+         # clean data
+         ncrename -O -h -v ${amsk}_index,$amsk temp.nc4 temp.nc4
+         ncrename -O -h -v yield_${cs}_${amsk},yield_${cs} temp.nc4 temp.nc4
+         ncap2 -O -h -s "time=time-1" temp.nc4 temp.nc4
+         ncatted -O -h -a units,time,m,c,"years since 1961-01-01" temp.nc4 temp.nc4
+
+         if [ $k = 0 ]; then
+            mv temp.nc4 $outfile
+         else
+            ncks -h -A temp.nc4 $outfile
+            rm temp.nc4
+         fi
+      done
+
+      nccopy -d9 -k4 $outfile $outfile.2
+      mv $outfile.2 $outfile
+   done
 done
