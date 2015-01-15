@@ -1,4 +1,4 @@
-<config>
+<config xmlns="http://www.ci.uchicago.edu/swift/SwiftSites">
 
 <pool handle="local">
   <execution provider="local" />
@@ -10,7 +10,7 @@
   <execution provider="coaster" jobmanager="local:slurm"/>
   <profile namespace="globus" key="jobsPerNode">10</profile>
   <profile namespace="globus" key="ppn">12</profile>
-  <profile namespace="globus" key="slots">96</profile>
+  <profile namespace="globus" key="slots">48</profile>
   <profile namespace="globus" key="maxnodes">1</profile>
   <profile namespace="globus" key="nodegranularity">1</profile>
   <profile namespace="globus" key="queue">sandyb</profile>
@@ -21,7 +21,7 @@
   <profile namespace="globus" key="maxtime">43200</profile>
   <profile namespace="globus" key="maxwalltime">04:00:00</profile>
   <filesystem provider="local" url="none" />
-  <workdirectory>/scratch/midway/jamespc/ggcmi.work</workdirectory>
+  <workdirectory>/scratch/midway/jamespc/ggcmi.work</workdirectory> 
   <scratch>/scratch/local/{env.USER}/ggcmi.work</scratch>
 </pool>
 
@@ -29,7 +29,7 @@
   <execution provider="coaster" jobmanager="local:slurm"/>
   <profile namespace="globus" key="jobsPerNode">10</profile>
   <profile namespace="globus" key="ppn">12</profile>
-  <profile namespace="globus" key="slots">96</profile>
+  <profile namespace="globus" key="slots">48</profile>
   <profile namespace="globus" key="maxnodes">1</profile>
   <profile namespace="globus" key="nodegranularity">1</profile>
   <profile namespace="globus" key="queue">westmere</profile>
@@ -40,7 +40,7 @@
   <profile namespace="globus" key="maxtime">43200</profile>
   <profile namespace="globus" key="maxwalltime">04:00:00</profile>
   <filesystem provider="local" url="none" />
-  <workdirectory>/scratch/midway/jamespc/ggcmi.work</workdirectory>
+  <workdirectory>/scratch/midway/jamespc/ggcmi.work</workdirectory> 
   <scratch>/scratch/local/{env.USER}/ggcmi.work</scratch>
 </pool>
 
