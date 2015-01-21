@@ -10,6 +10,35 @@ class FileSpec(object):
             vvar.units = units
             vvar.long_name = longname
 
+class AggregationFile(FileSpec):
+    def __init__(self, filename, time, tunits, scens, aggs, aggname, aggunits, agglongname):
+        super(AggregationFile, self).__init__(filename)
+
+        with nc(filename, 'w', format = 'NETCDF4_CLASSIC') as f:
+            f.createDimension(aggname, len(aggs)) # create aggregation level
+            aggsvar = f.createVariable(aggname, 'i4', aggname)
+            aggsvar[:] = aggs
+            aggsvar.units = aggunits
+            aggsvar.long_name = agglongname
+
+            f.createDimension('time', len(time)) # create time
+            timevar = f.createVariable('time', 'i4', 'time')
+            timevar[:] = time
+            timevar.units = tunits
+            timevar.long_name = 'time'
+
+            f.createDimension('scen', len(scens)) # create scen
+            scenvar = f.createVariable('scen', 'i4', 'scen')
+            scenvar[:] = range(1, len(scens) + 1)
+            scenvar.units = 'mapping'
+            scenvar.long_name = ', '.join(scens)
+
+            f.createDimension('irr', 3) # create irr
+            irrvar = f.createVariable('irr', 'i4', 'irr')
+            irrvar[:] = range(1, 4)
+            irrvar.units = 'mapping'
+            irrvar.long_name = 'ir, rf, sum'
+
 class BiasCorrectFile(FileSpec):
     def __init__(self, filename, aggs, aggname, aggunits, agglongname, time, scen, dt, mp, cr):
         super(BiasCorrectFile, self).__init__(filename)
