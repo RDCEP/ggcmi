@@ -126,7 +126,7 @@ class Averager(object):
         return areas
 
     def area(self, lats, nlats, nlons):
-        A = 100 * (111.2 / 2) ** 2 * cos(pi * lats / 360)
+        A = 100 * (111.2 / 2) ** 2 * cos(pi * lats / 180)
         A = resize(A, (nlons, nlats)).T
         return A
 

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
 from matplotlib.patches import Polygon
-from numpy.ma import masked_array, reshape, resize, arange
+from numpy.ma import masked_array, reshape, resize, arange, masked_where
 
 # parse inputs
 parser = OptionParser()
@@ -43,7 +43,7 @@ co2s   = ['co2', 'noco2']
 nm, ng, ncr, nd, nco2 = len(models), len(gcms), len(crops), len(decade), len(co2s)
 
 # benefit
-sh = (nm, ng, ncr, nd, 2)
+sh = (nm, ng, ncr, nd, nco2)
 benefit = masked_array(zeros(sh), mask = ones(sh))
 with nc(infile) as f:
     for m, g, c, co in product(range(nm), range(ng), range(ncr), range(nco2)):
@@ -55,6 +55,7 @@ with nc(infile) as f:
 weights = masked_array(zeros(sh), mask = ones(sh))
 for i in range(ncr):
     weights[:, :, i] = resize(cals[crops[i]], (nm, ng, nd, 2))
+weights = masked_where(benefit.mask, weights) # mask
 
 # average
 wbenefit  = (benefit * weights).sum(axis = 2)
