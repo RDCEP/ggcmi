@@ -113,7 +113,7 @@ class Averager(object):
         vartmp = zeros((nt, nlats, nlons))
         for i in range(len(aggvals)):
             warea = weights * area * (agg == aggvals[i])
-            tidx, latidx, lonidx = where(warea)
+            tidx, latidx, lonidx = ma.where(warea)
 
             vartmp[:] = 0
             vartmp[tidx, latidx, lonidx] = warea[tidx, latidx, lonidx] * \
