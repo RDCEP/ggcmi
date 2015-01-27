@@ -23,6 +23,9 @@ for m in pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku; do
          cl=${cropl[$c]}
          cs=${crops[$c]}
          indir=$idir/$m/$weath/$cl
+         if [ ! -d $indir ]; then
+            continue
+         fi
          gsfile=$gdir/${cs}_growing_season_dates.nc4
          for a in gadm0 fpu kg global; do
             afile=$adir/$a.mask.nc4
@@ -35,8 +38,11 @@ for m in pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku; do
                if [ ! -f $wfile ]; then
                   continue
                fi
-               mkdir -p $odir/$a/$area
-               echo $indir $cs $wfile $afile:$a $gsfile $odir/$a/$area/${m}_${weath}_hist_${cs}_annual_${wyear}.nc4
+               ofile=$odir/$a/$area/${m}_${weath}_hist_${cs}_annual_${wyear}.nc4
+               if [ ! -f $ofile ]; then
+                  mkdir -p $odir/$a/$area
+                  echo $indir $cs $wfile $afile:$a $gsfile $ofile
+               fi
             done
          done
       done
