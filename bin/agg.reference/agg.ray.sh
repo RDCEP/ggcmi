@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PATH=$PATH:/project/joshuaelliott/ggcmi/utils
+
 # directory to reference data
 refdir=/project/joshuaelliott/ggcmi/reference/ray/weighted
 
@@ -10,14 +12,14 @@ wtsdir=/project/ggcmi/AgMIP.output/processed/masks/weight
 mskdir=/project/ggcmi/AgMIP.output/processed/masks/aggr
 
 # directory to save output
-outdir=/project/joshuaelliott/ggcmi/bin/agg.reference
+outdir=/project/ggcmi/AgMIP.input/other.inputs/reference/ray/aggs
 
 # crops to process
 cpshort=(mai ric soy whe)
 cpfull=(maize rice soy wheat)
 
 # aggregation masks to process
-amsks=(fpu kg global)
+amsks=(gadm0 fpu kg global)
 
 # weight masks to process
 wmsks=(fixed dynamic)
@@ -32,9 +34,9 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
 
       # filename
       if [ $wmsk = fixed ]; then
-         outfile=$outdir/ray.1961-2008.${amsk}.nc4
+         outfile=$outdir/ray.1961-2008.${amsk}.fixed.nc4
       else
-         outfile=$outdir/ray.1961-2008.${amsk}.dynamic.nc4
+         outfile=$outdir/ray.1961-2008.${amsk}.ray.nc4
       fi
 
       for ((k = 0; k < ${#cpshort[@]}; k++)); do # crops

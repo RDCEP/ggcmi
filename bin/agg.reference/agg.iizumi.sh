@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PATH=$PATH:/project/joshuaelliott/ggcmi/utils
+
 # directory to reference data
 refdir=/project/joshuaelliott/ggcmi/reference/iizumi/30min
 
@@ -10,7 +12,7 @@ wtsdir=/project/ggcmi/AgMIP.output/processed/masks/weight
 mskdir=/project/ggcmi/AgMIP.output/processed/masks/aggr
 
 # directory to save output
-outdir=/project/joshuaelliott/ggcmi/bin/agg.reference
+outdir=/project/ggcmi/AgMIP.input/other.inputs/reference/iizumi/aggs
 
 # crops to process
 cpshort=(mai ric soy whe)
@@ -18,7 +20,7 @@ cpfull=(maize rice soy wheat)
 cpref=(maize_major rice_major soybean wheat)
 
 # aggregation masks to process
-amsks=(fpu kg global)
+amsks=(gadm0 fpu kg global)
 
 # weight masks to process
 wmsks=(fixed dynamic)
@@ -33,9 +35,9 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
 
       # filename
       if [ $wmsk = fixed ]; then
-         outfile=$outdir/iizumi.1982-2006.${amsk}.nc4
+         outfile=$outdir/iizumi.1982-2006.${amsk}.fixed.nc4
       else
-         outfile=$outdir/iizumi.1982-2006.${amsk}.dynamic.nc4
+         outfile=$outdir/iizumi.1982-2006.${amsk}.iizumi.nc4
       fi
 
       for ((k = 0; k < ${#cpshort[@]}; k++)); do # crops
