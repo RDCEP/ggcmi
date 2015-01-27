@@ -79,7 +79,7 @@ if not len(files):
     exit(0)
 
 # extract time and units from first filename
-y1, y2 = [int(y) for y in findall(r'\d+', splitext(files[0])[0])]
+y1, y2 = [int(y) for y in findall(r'\d+', splitext(files[0])[0])[-2 :]]
 time   = arange(1, y2 - y1 + 2)
 years  = arange(y1, y2 + 1)
 tunits = 'growing seasons since %d-01-01 00:00:00' % y1

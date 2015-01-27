@@ -23,7 +23,7 @@ for m in pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku; do
          cl=${cropl[$c]}
          cs=${crops[$c]}
          indir=$idir/$m/$weath/$cl
-         if [ ! -d $indir ]; then
+         if [ ! -d $indir ] || [ $(ls $indir | wc -l) = 0 ]; then
             continue
          fi
          gsfile=$gdir/${cs}_growing_season_dates.nc4
