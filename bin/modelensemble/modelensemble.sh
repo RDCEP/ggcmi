@@ -3,7 +3,7 @@
 PATH=$PATH:/project/joshuaelliott/ggcmi/utils
 
 swift -tc.file tc.data -sites.file midway.xml -config swift.properties modelensemble.swift \
-      -w=agmerra,agcfsr,cfsr,erai,grasp,watch,wfdei.cru,wfdei.gpcc,princeton \
+      -w=AgMERRA,AgCFSR,CFSR,ERAI,GRASP,WATCH,WFDEI.CRU,WFDEI.GPCC,Princeton \
       -c=mai,whe,ric,soy,sor,mil \
       -m=rmse,tscorr
 
