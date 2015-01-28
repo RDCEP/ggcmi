@@ -9,9 +9,9 @@ from numpy.ma import isMaskedArray
 from numpy import inf, float32, zeros, ones, where, diff, array_equal, logical_and
 
 def climate_years(clim_names):
-    clim_names_list = ['AgCFSR', 'AgMERRA', 'CFSR', 'ERAI', 'GRASP', \
+    clim_names_list = ['PGFv2', 'AgCFSR', 'AgMERRA', 'CFSR', 'ERAI', 'GRASP', \
                        'Princeton', 'WATCH', 'WFDEI.CRU', 'WFDEI.GPCC']
-    year_range_list = [[1980, 2010], [1980, 2010], [1980, 2010], [1979, 2010], [1961, 2010], \
+    year_range_list = [[1901, 2012], [1980, 2010], [1980, 2010], [1980, 2010], [1979, 2010], [1961, 2010], \
                        [1948, 2008], [1958, 2001], [1979, 2009], [1979, 2009]]
     yrs = [0] * len(clim_names)
     for i in range(len(clim_names)):
@@ -42,7 +42,7 @@ parser.add_option("-d", "--dir", dest = "dir", default = "AgMIP.output", type = 
                   help = "Directory in which to perform verification")
 parser.add_option("-m", "--mod", dest = "mod", default = "pDSSAT,pAPSIM", type = "string",
                   help = "Comma-separated list of crop models to verify (* = all models)")
-parser.add_option("-w", "--weath", dest = "weath", default = "AgCFSR,AgMERRA,CFSR,ERAI,GRASP,Princeton,WATCH,WFDEI.CRU,WFDEI.GPCC", type = "string",
+parser.add_option("-w", "--weath", dest = "weath", default = "PGFv2,AgCFSR,AgMERRA,CFSR,ERAI,GRASP,Princeton,WATCH,WFDEI.CRU,WFDEI.GPCC", type = "string",
                   help = "Comma-separated list of weather datasets to verify (* = all weather datasets)")
 parser.add_option("-c", "--crop", dest = "crop", default = "maize", type = "string",
                   help = "Comma-separated list of crops to verify (* = all crops, except 'others')")
@@ -325,11 +325,13 @@ for d in dirs:
                         
                     # maximum and minimum values
                     vmax = v.max()
-		    info_datmat[1] = '{:<9.3f}'.format(vmax)
-                    if len(info_datmat[1]) > 9: info_datmat[1] = '{:<9.3e}'.format(vmax)
+                    if isMaskedArray(vmax): vmax = v.fill_value
+		    info_datmat[1] = '{:<10.3f}'.format(vmax)
+                    if len(info_datmat[1]) > 9: info_datmat[1] = '{:<10.3e}'.format(vmax)
                     vmin = v.min()
-		    info_datmat[2] = '{:<9.3f}'.format(vmin)
-                    if len(info_datmat[2]) > 9: info_datmat[2] = '{:<9.3e}'.format(vmin)
+                    if isMaskedArray(vmin): vmin = v.fill_value
+		    info_datmat[2] = '{:<10.3f}'.format(vmin)
+                    if len(info_datmat[2]) > 9: info_datmat[2] = '{:<10.3e}'.format(vmin)
                     
                     # number of points within range
                     info_datmat[3] = str(logical_and(v >= vranges[varfullidx][0], v <= vranges[varfullidx][1]).sum() / len(time))
