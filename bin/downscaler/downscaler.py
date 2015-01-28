@@ -6,10 +6,10 @@ for p in os.environ['PATH'].split(':'): sys.path.append(p)
 
 # import modules
 from re import findall
-from os.path import basename
 from netCDF4 import Dataset as nc
 from optparse import OptionParser
 from filespecs import RescaledFile
+from os.path import basename, splitext
 from numpy.ma import masked_array, masked_where
 from numpy import ones, zeros, where, isnan, cos, pi, resize, logical_and, intersect1d
 
@@ -57,7 +57,7 @@ with nc(mkfile) as f: # load mask
 
 print agfile
 with nc(agfile) as f: # load aggregated file
-    ain       = f.variables[agglvl + '_index'][:]
+    ain       = f.variables[agglvl][:]
     tin       = f.variables['time'][:]
     tin_units = f.variables['time'].units
 
@@ -108,20 +108,14 @@ areatot = masked_where(areatot == 0, areatot)
 
 varr = masked_array(zeros((nt, nlats, nlons, nirr)), mask = ones((nt, nlats, nlons, nirr)))
 
+y1, y2 = [int(y) for y in findall(r'\d+', splitext(basename(irfile))[0])[-2 :]]
+ftime  = range(y1, y2 + 1)
+
 with nc(irfile) as f:
     var = f.variables[vname]
 
     units = var.units     if 'units'     in var.ncattrs() else ''
     lname = var.long_name if 'long_name' in var.ncattrs() else ''
-
-    ftime  = f.variables['time'][:]
-    funits = f.variables['time'].units
-
-    if funits == 'year as %Y.%f': # fix for GEPIC
-        funits = 'growing seasons since %d-01-01 00:00:00' % int(ftime[0])
-        ftime -= ftime[0] - 1
-
-    ftime += int(findall(r'\d+', funits)[0]) - 1
 
     varr[:, :, :, 0] = var[logical_and(ftime >= time[0], ftime <= time[-1])]
 

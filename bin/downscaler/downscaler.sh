@@ -2,9 +2,9 @@
 
 PATH=$PATH:/project/joshuaelliott/ggcmi/utils
 
-swift -tc.file tc.data -sites.file midway.xml -config swift.properties downscaler.swift              \
-      -mkfile=/project/ggcmi/AgMIP.output/processed/masks/aggr/gadm0.mask.nc4                        \
-      -reffile=/project/ggcmi/AgMIP.input/other.inputs/reference/faostat/faostat.1961-2012.gadm0.nc4 \
+swift -tc.file tc.data -sites.file midway.xml -config swift.properties downscaler.swift                    \
+      -mkfile=/project/ggcmi/AgMIP.output/processed/masks/aggr/gadm0.mask.nc4                              \
+      -reffile=/project/ggcmi/AgMIP.input/other.inputs/reference/faostat/faostat.1961-2012.gadm0.fixed.nc4 \
       -agglvl=gadm0
 
 if [ $? -eq 0 ]; then

@@ -12,13 +12,14 @@ for m in pDSSAT pAPSIM GEPIC PEGASUS LPJmL EPIC-IIASA EPIC-Boku LPJ-GUESS; do
   for w in AgMERRA AgCFSR WFDEI.GPCC WFDEI.CRU Princeton GRASP WATCH ERAI CFSR; do
     for ((i = 0; i < ${#clong[@]}; i++)); do
       for v in yield; do
-        irfiles=($(ls $root/AgMIP.output/$m/$w/${clong[$i]}/*firr*$v*${cshort[$i]}*       2> /dev/null))
-        rffiles=($(ls $root/AgMIP.output/$m/$w/${clong[$i]}/*noirr*$v*${cshort[$i]}*      2> /dev/null))
-        agfile=$(ls $root/AgMIP.output/processed/aggs/gadm0/${m,,}*_${w,,}*${cshort[$i]}* 2> /dev/null)
+        irfiles=($(ls $root/AgMIP.output/$m/$w/${clong[$i]}/*firr*$v*${cshort[$i]}*         2> /dev/null))
+        rffiles=($(ls $root/AgMIP.output/$m/$w/${clong[$i]}/*noirr*$v*${cshort[$i]}*        2> /dev/null))
+        agfile=$(ls $root/AgMIP.output/processed/aggs/gadm0/fixed/${m}*_${w}*${cshort[$i]}* 2> /dev/null)
         wtfile=$root/AgMIP.output/processed/masks/weight/${clong[$i]}.nc4
         if [ $agfile ]; then # aggregated file exists
           for ((j = 0; j < ${#irfiles[@]}; j++)); do
-            outfile=$root/AgMIP.output/processed/downscaled/gadm0/faostat/$(basename ${irfiles[$j]//_firr})
+            mkdir -p $root/AgMIP.output/processed/downscaled/gadm0/faostat/fixed
+            outfile=$root/AgMIP.output/processed/downscaled/gadm0/faostat/fixed/$(basename ${irfiles[$j]//_firr})
             outfile=${outfile/nc4/downscaled.nc4}
             echo ${irfiles[$j]} ${rffiles[$j]} $agfile $wtfile ${v}_${cshort[$i]} $outfile
           done
