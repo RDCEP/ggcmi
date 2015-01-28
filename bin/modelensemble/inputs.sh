@@ -1,20 +1,20 @@
 #!/bin/bash
 
-root=/project/ggcmi
+bcdir=/project/ggcmi/AgMIP.output/processed/biascorr
+mmdir=/project/ggcmi/AgMIP.output/processed/multimetrics
+outdir=/project/ggcmi/AgMIP.output/processed/modelensemble
 
 # Header
 echo indir metricsdir agglvl outdir
 
-# gadm0
-echo $root/AgMIP.output/processed/biascorr/gadm0/faostat $root/AgMIP.output/processed/multimetrics/gadm0/faostat gadm0 $root/AgMIP.output/processed/modelensemble/gadm0/faostat
-
-# fpu
-echo $root/AgMIP.output/processed/biascorr/fpu/ray $root/AgMIP.output/processed/multimetrics/fpu/ray fpu $root/AgMIP.output/processed/modelensemble/fpu/ray
-echo $root/AgMIP.output/processed/biascorr/fpu/iizumi $root/AgMIP.output/processed/multimetrics/fpu/iizumi fpu $root/AgMIP.output/processed/modelensemble/fpu/iizumi
-
-# kg
-echo $root/AgMIP.output/processed/biascorr/kg/ray $root/AgMIP.output/processed/multimetrics/kg/ray kg $root/AgMIP.output/processed/modelensemble/kg/ray
-echo $root/AgMIP.output/processed/biascorr/kg/iizumi $root/AgMIP.output/processed/multimetrics/kg/iizumi kg $root/AgMIP.output/processed/modelensemble/kg/iizumi
-
-# global
-echo $root/AgMIP.output/processed/biascorr/global/faostat $root/AgMIP.output/processed/multimetrics/global/faostat global $root/AgMIP.output/processed/modelensemble/global/faostat
+for a in gadm0 fpu kg global; do
+   for ref in faostat ray iizumi; do   
+      for area in fixed ray iizumi; do
+         if [ ! -d $bcdir/$a/$ref/$area ] || [ ! -d $mmdir/$a/$ref/$area ]; then
+            continue
+         fi
+         mkdir -p $outdir/$a/$ref/$area
+         echo $bcdir/$a/$ref/$area $mmdir/$a/$ref/$area $a $outdir/$a/$ref/$area
+      done
+   done
+done
