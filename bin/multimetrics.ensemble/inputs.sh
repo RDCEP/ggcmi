@@ -14,7 +14,7 @@ for a in gadm0 fpu kg global; do
    for ((ref = 0; ref < ${#refs[@]}; ref++)); do
       rs=${refs[$ref]}
       rl=${refl[$ref]}
-      for area in fixed ray iizumi; do
+      for area in fixed_mask ray_mask iizumi_mask; do
          reffile=$refdir/$rs/$rl.$a.$area.nc4
          if [ ! -f $reffile ] || [ ! -d $indir/$a/$rs/$area ]; then
             continue

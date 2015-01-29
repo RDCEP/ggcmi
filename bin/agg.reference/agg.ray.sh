@@ -34,9 +34,9 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
 
       # filename
       if [ $wmsk = fixed ]; then
-         outfile=$outdir/ray.1961-2008.${amsk}.fixed.nc4
+         outfile=$outdir/ray.1961-2008.${amsk}.fixed_mask.nc4
       else
-         outfile=$outdir/ray.1961-2008.${amsk}.ray.nc4
+         outfile=$outdir/ray.1961-2008.${amsk}.ray_mask.nc4
       fi
 
       for ((k = 0; k < ${#cpshort[@]}; k++)); do # crops

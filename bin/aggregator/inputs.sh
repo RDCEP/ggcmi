@@ -38,9 +38,9 @@ for m in pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku; do
                if [ ! -f $wfile ]; then
                   continue
                fi
-               ofile=$odir/$a/$area/${m}_${weath}_hist_${cs}_annual_${wyear}.nc4
+               ofile=$odir/$a/${area}_mask/${m,,}_${weath,,}_hist_${cs}_annual_${wyear}.nc4
                if [ ! -f $ofile ]; then
-                  mkdir -p $odir/$a/$area
+                  mkdir -p $odir/$a/${area}_mask
                   echo $indir $cs $wfile $afile:$a $gsfile $ofile
                fi
             done

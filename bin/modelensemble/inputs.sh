@@ -9,7 +9,7 @@ echo indir metricsdir agglvl outdir
 
 for a in gadm0 fpu kg global; do
    for ref in faostat ray iizumi; do   
-      for area in fixed ray iizumi; do
+      for area in fixed_mask ray_mask iizumi_mask; do
          if [ ! -d $bcdir/$a/$ref/$area ] || [ ! -d $mmdir/$a/$ref/$area ]; then
             continue
          fi
