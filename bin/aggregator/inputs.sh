@@ -29,8 +29,8 @@ for m in pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku; do
          gsfile=$gdir/${cs}_growing_season_dates.nc4
          for a in gadm0 fpu kg global; do
             afile=$adir/$a.mask.nc4
-            for area in fixed ray iizumi; do
-               if [ $area = fixed ]; then
+            for area in mirca ray iizumi; do
+               if [ $area = mirca ]; then
                   wfile=$wdir/$cl.nc4
                else
                   wfile=$wdir/$cl.$area.nc4
@@ -38,9 +38,14 @@ for m in pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku; do
                if [ ! -f $wfile ]; then
                   continue
                fi
-               ofile=$odir/$a/${area}_mask/${m,,}_${weath,,}_hist_${cs}_annual_${wyear}.nc4
+               if [ $area = mirca ] || [ $area = iizumi ]; then
+                  outdir=$odir/$a/fixed_${area}_mask
+               else
+                  outdir=$odir/$a/dynamic_${area}_mask
+               fi
+               ofile=$outdir/${m,,}_${weath,,}_hist_${cs}_annual_${wyear}.nc4
                if [ ! -f $ofile ]; then
-                  mkdir -p $odir/$a/${area}_mask
+                  mkdir -p $outdir
                   echo $indir $cs $wfile $afile:$a $gsfile $ofile
                fi
             done

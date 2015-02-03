@@ -22,7 +22,7 @@ cpfull=(maize rice soy wheat)
 amsks=(gadm0 fpu kg global)
 
 # weight masks to process
-wmsks=(fixed dynamic)
+wmsks=(mirca ray iizumi)
 
 for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
    # aggregation mask name
@@ -33,10 +33,10 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
       wmsk=${wmsks[$j]}
 
       # filename
-      if [ $wmsk = fixed ]; then
-         outfile=$outdir/ray.1961-2008.${amsk}.fixed_mask.nc4
+      if [ $wmsk = mirca ] || [ $wmsk = iizumi ]; then
+         outfile=$outdir/ray.1961-2008.${amsk}.fixed_${wmsk}_mask.nc4
       else
-         outfile=$outdir/ray.1961-2008.${amsk}.ray_mask.nc4
+         outfile=$outdir/ray.1961-2008.${amsk}.dynamic_${wmsk}_mask.nc4
       fi
 
       for ((k = 0; k < ${#cpshort[@]}; k++)); do # crops
@@ -47,25 +47,28 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
          cf=${cpfull[$k]}
 
          # weight mask file
-         if [ $wmsk = fixed ]; then
+         if [ $wmsk = mirca ]; then
             wfile=${cf}.nc4
-         else
+            infile=${cs}_weight_ray_1961-2008.nc4
+         elif [ $wmsk = ray ]; then
             wfile=${cf}.ray.nc4
+            infile=${cs}_weight_ray_1961-2008.nc4
+         else
+            wfile=${cf}.iizumi.nc4
+            infile=${cs}_weight_ray_1982-2006.nc4
          fi
 
          # aggregate
          echo Aggregating crop $cf to $amsk level with $wmsk weights . . .
-         ./agg.single.py -i $refdir/${cs}_weight_ray_1961-2008.nc4:yield_${cs} \
-                         -a $mskdir/${amsk}.mask.nc4:$amsk                     \
-                         -t mean                                               \
-                         -w $wtsdir/$wfile:sum                                 \
+         ./agg.single.py -i $refdir/$infile:yield_${cs}    \
+                         -a $mskdir/${amsk}.mask.nc4:$amsk \
+                         -t mean                           \
+                         -w $wtsdir/$wfile:sum             \
                          -o temp.nc4
 
          # clean data
          ncrename -O -h -v ${amsk}_index,$amsk temp.nc4 temp.nc4
          ncrename -O -h -v yield_${cs}_${amsk},yield_${cs} temp.nc4 temp.nc4
-         ncap2 -O -h -s "time=time-1" temp.nc4 temp.nc4
-         ncatted -O -h -a units,time,m,c,"years since 1961-01-01" temp.nc4 temp.nc4
 
          if [ $k = 0 ]; then
             mv temp.nc4 $outfile
