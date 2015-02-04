@@ -7,7 +7,7 @@ for g in ${gadm[@]}; do
       for m in none variance-scale mean-scale; do
          for c in mai ric soy whe mil sor; do
             echo $g, $v, $m, $c
-            ./multimetrics_plot.py -d /project/ggcmi/AgMIP.output/processed/multimetrics/gadm0/faostat/fixed -v $v -x model -y climate,AgCFSR,AgMERRA,CFSR,ERAI,GRASP,Princeton,WATCH,WFDEI.CRU,WFDEI.GPCC -c gadm0,$g -o scen -c mp,true -c cr,$m -c time_range,full -c crop,$c -o dt --outdir /project/ggcmi/AgMIP.output/processed/plots/heatmapMM -f jpg
+            ./multimetrics_plot.py -d /project/ggcmi/AgMIP.output/processed/multimetrics/gadm0/faostat/fixed_mirca_mask -v $v -x model -y climate,agcfsr,agmerra,cfsr,erai,grasp,princeton,watch,wfdei.cru,wfdei.gpcc -c gadm0,$g -o scen -c mp,true -c cr,$m -c time_range,full -c crop,$c -o dt --outdir /project/ggcmi/AgMIP.output/processed/plots/heatmapMM -f jpg
          done
       done
    done
