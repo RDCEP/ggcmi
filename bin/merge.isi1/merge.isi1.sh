@@ -21,9 +21,9 @@ gcms=(GFDL-ESM2M HadGEM2-ES IPSL-CM5A-LR MIROC-ESM-CHEM NorESM1-M)
 crops=(maize wheat soy rice)
 co2s=(co2 noco2)
 
-indir=/project/ggcmi/isi1.metrics
+indir=/project/ggcmi/isi1/isi1.metrics
 
-outfile=/project/ggcmi/isi1.metrics.all/metrics.nc4
+outfile=/project/ggcmi/isi1/isi1.metrics.all/metrics.nc4
 
 firstfile=true
 for m in ${models[@]}; do
@@ -46,10 +46,10 @@ for m in ${models[@]}; do
                     ncks -h -A $infile $outfile
                 fi
 
-                ncrename -O -h -v delta_yield_fpu,delta_yield_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v delta_yield_global,delta_yield_global_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v benefit_fpu,benefit_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v benefit_global,benefit_global_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v beta_fpu,beta_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v beta_global,beta_global_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v lambda_fpu,lambda_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v lambda_global,lambda_global_${ml}_${gl}_${c}_${co} $outfile $outfile
             done
         done
     done

@@ -7,11 +7,11 @@ for p in os.environ['PATH'].split(':'): sys.path.append(p)
 # import modules
 from re import findall
 from itertools import product
+from os.path import split, sep
 from netCDF4 import Dataset as nc
 from optparse import OptionParser
 from filespecs import BiasCorrectFile
 from biascorrecter import BiasCorrecter
-from os.path import split, splitext, sep
 from numpy.ma import masked_array, reshape
 from numpy import intersect1d, zeros, ones
 
@@ -38,7 +38,7 @@ ndt, nmp, ncr = len(dt), len(mp), len(cr)
 
 scen = ['default'] # one scenario
 
-crop = split(infile)[1].split('_')[5] # pull crop name from file name
+crop = split(infile)[1].split('_')[-4] # pull crop name from file name
 
 with nc(reffile) as fref: # pull reference data
     aref        = fref.variables[agglvl][:]
@@ -89,7 +89,7 @@ for g, s in product(range(naggs), range(nscen)):
             yield_detr[g, :, s, d, m, c] = detr
             yield_retr[g, :, s, d, m, c] = retr
 
-fn = outdir + sep + splitext(split(infile)[1])[0] + '.biascorr.nc4' # create file
+fn = outdir + sep + split(infile)[1] # create file
 fout = BiasCorrectFile(fn, aggs, agglvl, aggunits, agglongname, tin, scen, dt, mp, cr)
 fout.append('yield_detrend', yield_detr, (agglvl, 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average detrended yield') # append to file
 fout.append('yield_retrend', yield_retr, (agglvl, 'time', 'scen', 'dt', 'mp', 'cr'), 't ha-1 yr-1', 'average retrended yield')

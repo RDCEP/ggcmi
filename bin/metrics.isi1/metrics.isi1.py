@@ -5,7 +5,7 @@ from re import findall
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
 from numpy import where, zeros, ones
-from numpy.ma import resize, reshape, masked_array
+from numpy.ma import masked_array, reshape, resize
 
 # parse inputs
 parser = OptionParser()
@@ -33,46 +33,45 @@ with nc(rcp26file) as f:
     tunits = f.variables['time'].units
     time  += int(findall(r'\d+', tunits)[0])
 
-    irr      = f.variables['irr'][:]
-    irrlname = f.variables['irr'].long_name
-
-    fpu26    = f.variables[variable + '_fpu'][:]
-    global26 = f.variables[variable + '_global'][:]
+    fpu26    = f.variables[variable + '_fpu'][:, :, 0, 0, 0, 0]    # fpu, time, scen, dt, mp, cr
+    global26 = f.variables[variable + '_global'][:, :, 0, 0, 0, 0] # global, time, scen, dt, mp, cr
 
 with nc(rcp85file) as f:
-    fpu85    = f.variables[variable + '_fpu'][:]
-    global85 = f.variables[variable + '_global'][:]
+    fpu85    = f.variables[variable + '_fpu'][:, :, 0, 0, 0, 0]
+    global85 = f.variables[variable + '_global'][:, :, 0, 0, 0, 0]
 
-nt, nf, ng, nirr = len(time), len(afpu), len(aglobal), len(irr)
+nt, nf, ng = len(time), len(afpu), len(aglobal)
 
 tidx1, tidx2 = where(time == 1980)[0][0], where(time == 2009)[0][0] + 1
 
-# delta yield
-dyfpu = masked_array(zeros((nt, nf, nirr, 2)), mask = ones((nt, nf, nirr, 2)))
-dyfpu[:, :, :, 0] = fpu26 / resize(fpu26[tidx1 : tidx2].mean(axis = 0), fpu26.shape)
-dyfpu[:, :, :, 1] = fpu85 / resize(fpu85[tidx1 : tidx2].mean(axis = 0), fpu85.shape)
-
-dyglobal = masked_array(zeros((nt, ng, nirr, 2)), mask = ones((nt, ng, nirr, 2)))
-dyglobal[:, :, :, 0] = global26 / resize(global26[tidx1 : tidx2].mean(axis = 0), global26.shape)
-dyglobal[:, :, :, 1] = global85 / resize(global85[tidx1 : tidx2].mean(axis = 0), global85.shape)
-
-# benefit
+# number of decades
 nd = nt / 10
-bfpu  = reshape(dyfpu[:, :, :, 1], (nd, 10, nf, nirr)).mean(axis = 1)
-bfpu /= reshape(dyfpu[:, :, :, 0], (nd, 10, nf, nirr)).mean(axis = 1)
-bfpu  = 1. - bfpu
 
-bglobal  = reshape(dyglobal[:, :, :, 1], (nd, 10, ng, nirr)).mean(axis = 1)
-bglobal /= reshape(dyglobal[:, :, :, 0], (nd, 10, ng, nirr)).mean(axis = 1)
-bglobal  = 1. - bglobal
+# delta yield
+dyfpu26 = reshape(fpu26, (nf, nd, 10)).mean(axis = 2) - resize(fpu26[:, tidx1 : tidx2].mean(axis = 1), (nd, nf)).T
+dyfpu85 = reshape(fpu85, (nf, nd, 10)).mean(axis = 2) - resize(fpu85[:, tidx1 : tidx2].mean(axis = 1), (nd, nf)).T
+dyglobal26 = reshape(global26, (ng, nd, 10)).mean(axis = 2) - resize(global26[:, tidx1 : tidx2].mean(axis = 1), (nd, ng)).T
+dyglobal85 = reshape(global85, (ng, nd, 10)).mean(axis = 2) - resize(global85[:, tidx1 : tidx2].mean(axis = 1), (nd, ng)).T
+
+# metrics
+betafpu      = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
+betaglobal   = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
+lambdafpu    = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
+lambdaglobal = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
+
+# beta
+negy             = dyfpu85 < -0.01
+betafpu[negy]    = 100 * (1 - dyfpu26[negy] / dyfpu85[negy])
+negy             = dyglobal85 < -0.01
+betaglobal[negy] = 100 * (1 - dyglobal26[negy] / dyglobal85[negy])
+
+# lambda
+posy               = dyfpu85 > 0.01
+lambdafpu[posy]    = 100 * (dyfpu26[posy] / dyfpu85[posy] - 1)
+posy               = dyglobal85 > 0.01
+lambdaglobal[posy] = 100 * (dyglobal26[posy] / dyglobal85[posy] - 1)
 
 with nc(outfile, 'w') as f:
-    f.createDimension('time', nt)
-    timevar = f.createVariable('time', 'i4', 'time')
-    timevar[:] = time - time[0]
-    timevar.units = tunits
-    timevar.long_name = 'time'
-
     f.createDimension('fpu', nf)
     fpuvar = f.createVariable('fpu', 'i4', 'fpu')
     fpuvar[:] = afpu
@@ -85,40 +84,28 @@ with nc(outfile, 'w') as f:
     globalvar.units = gunits
     globalvar.long_name = glname
 
-    f.createDimension('irr', nirr)
-    irrvar = f.createVariable('irr', 'i4', 'irr')
-    irrvar[:] = irr
-    irrvar.units = 'mapping'
-    irrvar.long_name = irrlname
-
-    f.createDimension('rcp', 2)
-    rcpvar = f.createVariable('rcp', 'i4', 'rcp')
-    rcpvar[:] = range(2)
-    rcpvar.units = 'mapping'
-    rcpvar.long_name = 'rcp26, rcp85'
-
     f.createDimension('decade', nd)
     dvar = f.createVariable('decade', 'i4', 'decade')
     dvar[:] = range(nd)
     dvar.units = 'decades since from 1980'
     dvar.long_name = 'decade'
 
-    dyfvar = f.createVariable('delta_yield_fpu', 'f8', ('time', 'fpu', 'irr', 'rcp'))
-    dyfvar[:] = dyfpu
-    dyfvar.units = ''
-    dyfvar.long_name = 'delta yield relative to 1980-2009 average at fpu level'
-
-    dygvar = f.createVariable('delta_yield_global', 'f8', ('time', 'global', 'irr', 'rcp'))
-    dygvar[:] = dyglobal
-    dygvar.units = ''
-    dygvar.long_name = 'delta yield relative to 1980-2009 average at global level'
-
-    bfvar = f.createVariable('benefit_fpu', 'f8', ('decade', 'fpu', 'irr'))
-    bfvar[:] = bfpu
+    bfvar = f.createVariable('beta_fpu', 'f8', ('fpu', 'decade'))
+    bfvar[:] = betafpu
     bfvar.units = ''
-    bfvar.long_name = 'benefit of RCP 2.6 over RCP 8.5 at fpu level'
+    bfvar.long_name = '100 * (1 - delta yield rcp 2.6 / delta yield rcp 8.5) at fpu level'
 
-    bgvar = f.createVariable('benefit_global', 'f8', ('decade', 'global', 'irr'))
-    bgvar[:] = bglobal
+    bgvar = f.createVariable('beta_global', 'f8', ('global', 'decade'))
+    bgvar[:] = betaglobal
     bgvar.units = ''
-    bgvar.long_name = 'benefit of RCP 2.6 over RCP 8.5 at global level'
+    bgvar.long_name = '100 * (1 - delta yield rcp 2.6 / delta yield rcp 8.5) at global level'
+
+    lfvar = f.createVariable('lambda_fpu', 'f8', ('fpu', 'decade'))
+    lfvar[:] = lambdafpu
+    lfvar.units = ''
+    lfvar.long_name = '100 * (delta yield rcp 2.6 / delta yield rcp 8.5 - 1) at fpu level'
+
+    lgvar = f.createVariable('lambda_global', 'f8', ('global', 'decade'))
+    lgvar[:] = lambdaglobal
+    lgvar.units = ''
+    lgvar.long_name = '100 * (delta yield rcp 2.6 / delta yield rcp 8.5 - 1) at global level'

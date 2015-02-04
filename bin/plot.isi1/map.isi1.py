@@ -27,6 +27,8 @@ parser.add_option("-w", "--weightfile", dest = "weightfile", default = "maize.nc
                   help = "Weight file", metavar = "FILE")
 parser.add_option("-p", "--percent", dest = "percent", default = "0.1", type = "float",
                   help = "Percent threshold")
+parser.add_option("-v", "--variable", dest = "variable", default = "beta", type = "string",
+                  help = "Variable to plot")
 parser.add_option("-m", "--mapfile", dest = "mapfile", default = "map.png", type = "string",
                   help = "Output map file", metavar = "FILE")
 parser.add_option("-n", "--ncfile", dest = "ncfile", default = "map.nc4", type = "string",
@@ -39,10 +41,11 @@ aggfile    = options.aggfile
 shapefile  = options.shapefile
 weightfile = options.weightfile
 percent    = options.percent
+variable   = options.variable
 mapfile    = options.mapfile
 ncfile     = options.ncfile
 
-cals = {'maize': 3.60, 'wheat': 3.34, 'soy': 3.35, 'rice': 3.59}
+cals = {'maize': 3.60, 'wheat': 3.34, 'soy': 3.35, 'rice': 2.80}
 
 with nc(infile) as f:
     fpu = f.variables['fpu'][:]
@@ -73,64 +76,61 @@ r = Reader(shapefile)
 shapes  = r.shapes()
 records = r.records()
 
-models = ['epic', 'gepic', 'image_leitap', 'lpj-guess', 'lpjml', 'pdssat', 'pegasus']
+models = ['epic', 'gepic', 'lpj-guess', 'lpjml', 'pdssat', 'pegasus'] # exclude image
 gcms   = ['gfdl-esm2m', 'hadgem2-es', 'ipsl-cm5a-lr', 'miroc-esm-chem', 'noresm1-m']
 crops  = ['maize', 'wheat', 'soy', 'rice'] if crop == 'all' else [crop]
 co2s   = ['co2', 'noco2']
 
 nm, ng, ncr, nco2 = len(models), len(gcms), len(crops), len(co2s)
 
-# benefit
+# variable
 sh = (nm, ng, ncr, 3, nfpu, nco2)
-benefit = masked_array(zeros(sh), mask = ones(sh))
+varr = masked_array(zeros(sh), mask = ones(sh))
 with nc(infile) as f:
     for m, g, c, co in product(range(nm), range(ng), range(ncr), range(nco2)):
-        var = 'benefit_fpu_%s_%s_%s_%s' % (models[m], gcms[g], crops[c], co2s[co])
+        var = '%s_fpu_%s_%s_%s_%s' % (variable, models[m], gcms[g], crops[c], co2s[co])
         if var in f.variables:
-            benefit[m, g, c, :, :, co] = f.variables[var][-3 :, :, 2] # last three decades, sum
+            varr[m, g, c, :, :, co] = f.variables[var][:, -3 :].T # last three decades
 
 # weights
 weights = masked_array(zeros(sh), mask = ones(sh))
 for i in range(ncr):
     weights[:, :, i] = resize(cals[crops[i]], (nm, ng, 3, nfpu, nco2))
-weights = masked_where(benefit.mask, weights) # mask
+weights = masked_where(varr.mask, weights) # mask
 
 hadgemidx = gcms.index('hadgem2-es')
 
-wbenefit = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
+wvarr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
 
 # hadgem noco2
-b = benefit[[0, 1, 3, 4, 5, 6], hadgemidx, :, :, :, 1]
-w = weights[[0, 1, 3, 4, 5, 6], hadgemidx, :, :, :, 1]
-wb  = (b * w).sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wb /= w.sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wbenefit[0] = wb
+v = varr[:, hadgemidx, :, :, :, 1]
+w = weights[:, hadgemidx, :, :, :, 1]
+wv  = (v * w).sum(axis = 2).sum(axis = 1).sum(axis = 0)
+wvarr[0] = wv / w.sum(axis = 2).sum(axis = 1).sum(axis = 0)
 
 # hadgem co2
-b = benefit[[0, 1, 3, 4, 5, 6], hadgemidx, :, :, :, 0]
-w = weights[[0, 1, 3, 4, 5, 6], hadgemidx, :, :, :, 0]
-wb  = (b * w).sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wb /= w.sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wbenefit[1] = wb
+v = varr[:, hadgemidx, :, :, :, 0]
+w = weights[:, hadgemidx, :, :, :, 0]
+wv  = (v * w).sum(axis = 2).sum(axis = 1).sum(axis = 0)
+wvarr[1] = wv / w.sum(axis = 2).sum(axis = 1).sum(axis = 0)
 
 # all co2
-b = benefit[:, :, :, :, :, 0]
+v = varr[:, :, :, :, :, 0]
 w = weights[:, :, :, :, :, 0]
-wb  = (b * w).sum(axis = 3).sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wb /= w.sum(axis = 3).sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wbenefit[2] = wb
+wv  = (v * w).sum(axis = 3).sum(axis = 2).sum(axis = 1).sum(axis = 0)
+wvarr[2] = wv / w.sum(axis = 3).sum(axis = 2).sum(axis = 1).sum(axis = 0)
 
 filename, ext = splitext(mapfile)
 mapfiles = [filename + '.noco2' + ext, filename + '.co2.hadgem' + ext, filename + '.co2' + ext]
 filename, ext = splitext(ncfile)
 ncfiles = [filename + '.noco2' + ext, filename + '.co2.hadgem' + ext, filename + '.co2' + ext]
 
-for i in range(len(wbenefit)):
+for i in range(len(wvarr)):
     # rasterize
-    benefitmap = masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons)))
+    varmap = masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons)))
     for j in range(len(validfpus)):
         fpuidx = where(fpu == validfpus[j])[0][0]
-        benefitmap[fpumap == validfpus[j]] = wbenefit[i, fpuidx]
+        varmap[fpumap == validfpus[j]] = wvarr[i, fpuidx]
 
     # plot map and fpu boundaries
     plt.figure()
@@ -156,12 +156,12 @@ for i in range(len(wbenefit)):
         lines.set_linewidth(0.1)
         ax.add_collection(lines)
 
-    # plot benefit map
+    # plot variable map
     glon, glat = meshgrid(lons, lats)
     x, y = m(glon, glat)
-    cs = m.pcolor(x, y, benefitmap, vmin = -0.5, vmax = 0.5, cmap = matplotlib.cm.RdYlGn)
+    cs = m.pcolor(x, y, varmap, vmin = -100, vmax = 100, cmap = matplotlib.cm.RdYlGn)
     cbar = m.colorbar(cs, location = 'right')
-    cbar.set_ticks(arange(-0.5, 0.6, 0.25))
+    cbar.set_ticks(arange(-100, 120, 25))
     m.drawcoastlines()
     m.drawmapboundary()
     m.drawparallels(arange(90, -90, -30),  labels = [1, 0, 0, 0])
@@ -191,10 +191,10 @@ for i in range(len(wbenefit)):
         fpuvar.units = 'FPU index'
         fpuvar.long_name = '309 Food Producing Units'
 
-        bmvar = f.createVariable('benefit', 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
-        bmvar[:] = benefitmap
-        bmvar.long_name = 'benefit of RCP 2.6 over RCP 8.5'
+        bmvar = f.createVariable(variable, 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
+        bmvar[:] = varmap
+        bmvar.long_name = variable
 
-        bfvar = f.createVariable('benefit_fpu', 'f8', 'fpu', zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
-        bfvar[:] = wbenefit[i]
-        bfvar.long_name = 'benefit of RCP 2.6 over RCP 8.5 at fpu level'
+        bfvar = f.createVariable(variable + '_fpu', 'f8', 'fpu', zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
+        bfvar[:] = wvarr[i]
+        bfvar.long_name = variable + ' at fpu level'
