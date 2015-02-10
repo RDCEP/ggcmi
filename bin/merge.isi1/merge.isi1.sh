@@ -46,10 +46,10 @@ for m in ${models[@]}; do
                     ncks -h -A $infile $outfile
                 fi
 
-                ncrename -O -h -v beta_fpu,beta_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v beta_global,beta_global_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v lambda_fpu,lambda_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v lambda_global,lambda_global_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v delta_yield_26_fpu,delta_yield_26_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v delta_yield_85_fpu,delta_yield_85_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v delta_yield_26_global,delta_yield_26_global_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v delta_yield_85_global,delta_yield_85_global_${ml}_${gl}_${c}_${co} $outfile $outfile
             done
         done
     done

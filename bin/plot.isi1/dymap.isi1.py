@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
 from mpl_toolkits.basemap import Basemap
-from numpy.ma import masked_array, masked_where
 from matplotlib.collections import LineCollection
+from numpy.ma import masked_array, masked_where, median, reshape
 from numpy import zeros, ones, resize, meshgrid, arange, array, cos, pi, where
 
 # parse inputs
@@ -21,14 +21,16 @@ parser.add_option("-c", "--crop", dest = "crop", default = "maize", type = "stri
                   help = "Crop (or all)")
 parser.add_option("-a", "--aggfile", dest = "aggfile", default = "fpu.mask.nc4", type = "string",
                   help = "Aggregation file", metavar = "FILE")
+parser.add_option("-r", "--hareafile", dest = "hareafile", default = "all.fpu.nc4", type = "string",
+                  help = "Harvested area file", metavar = "FILE")
 parser.add_option("-s", "--shapefile", dest = "shapefile", default = "fpu", type = "string",
                   help = "Shape file", metavar = "FILE")
 parser.add_option("-w", "--weightfile", dest = "weightfile", default = "maize.nc4", type = "string",
                   help = "Weight file", metavar = "FILE")
 parser.add_option("-p", "--percent", dest = "percent", default = "0.1", type = "float",
                   help = "Percent threshold")
-parser.add_option("-v", "--variable", dest = "variable", default = "beta", type = "string",
-                  help = "Variable to plot")
+parser.add_option("-v", "--variable", dest = "variable", default = "delta_yield_26", type = "string",
+                  help = "Variable to map")
 parser.add_option("-m", "--mapfile", dest = "mapfile", default = "map.png", type = "string",
                   help = "Output map file", metavar = "FILE")
 parser.add_option("-n", "--ncfile", dest = "ncfile", default = "map.nc4", type = "string",
@@ -38,6 +40,7 @@ options, args = parser.parse_args()
 infile     = options.infile
 crop       = options.crop
 aggfile    = options.aggfile
+hareafile  = options.hareafile
 shapefile  = options.shapefile
 weightfile = options.weightfile
 percent    = options.percent
@@ -61,6 +64,13 @@ nlats, nlons = len(lats), len(lons)
 with nc(weightfile) as f:
     harea = f.variables['sum'][:]
 
+# load area file
+careas = {}
+with nc(hareafile) as f:
+    cfpu = f.variables['fpu'][:]
+    for c in ['maize', 'wheat', 'soy', 'rice']:
+        careas[c] = f.variables['area_' + c][:]
+
 # find valid fpus
 tarea = 100 * (111.2 / 2) ** 2 * cos(pi * lats / 180)
 tarea = resize(tarea, (nlons, nlats)).T
@@ -81,56 +91,55 @@ gcms   = ['gfdl-esm2m', 'hadgem2-es', 'ipsl-cm5a-lr', 'miroc-esm-chem', 'noresm1
 crops  = ['maize', 'wheat', 'soy', 'rice'] if crop == 'all' else [crop]
 co2s   = ['co2', 'noco2']
 
+hadgemidx = gcms.index('hadgem2-es')
+
 nm, ng, ncr, nco2 = len(models), len(gcms), len(crops), len(co2s)
 
 # variable
 sh = (nm, ng, ncr, 3, nfpu, nco2)
-varr = masked_array(zeros(sh), mask = ones(sh))
+dyarr = masked_array(zeros(sh), mask = ones(sh))
 with nc(infile) as f:
     for m, g, c, co in product(range(nm), range(ng), range(ncr), range(nco2)):
         var = '%s_fpu_%s_%s_%s_%s' % (variable, models[m], gcms[g], crops[c], co2s[co])
         if var in f.variables:
-            varr[m, g, c, :, :, co] = f.variables[var][:, -3 :].T # last three decades
+            dyarr[m, g, c, :, :, co] = f.variables[var][:, -3 :].T # last three decades
 
 # weights
 weights = masked_array(zeros(sh), mask = ones(sh))
+areas   = masked_array(zeros(sh), mask = ones(sh))
 for i in range(ncr):
-    weights[:, :, i] = resize(cals[crops[i]], (nm, ng, 3, nfpu, nco2))
-weights = masked_where(varr.mask, weights) # mask
+    weights[:, :, i] = cals[crops[i]]
+    for f in range(nfpu):
+        fpuidx = where(cfpu == fpu[f])[0][0]
+        areas[:, :, i, :, f] = careas[crops[i]][fpuidx]
+weights = masked_where(dyarr.mask, weights) # mask
+areas   = masked_where(dyarr.mask, areas)
 
-hadgemidx = gcms.index('hadgem2-es')
+# average over crops and decades
+dyarr = (dyarr * weights * areas).sum(axis = 3).sum(axis = 2) / areas.sum(axis = 3).sum(axis = 2)
 
-wvarr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
+dymarr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
 
 # hadgem noco2
-v = varr[:, hadgemidx, :, :, :, 1]
-w = weights[:, hadgemidx, :, :, :, 1]
-wv  = (v * w).sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wvarr[0] = wv / w.sum(axis = 2).sum(axis = 1).sum(axis = 0)
+dymarr[0] = median(dyarr[:, hadgemidx, :, 1], axis = 0)
 
 # hadgem co2
-v = varr[:, hadgemidx, :, :, :, 0]
-w = weights[:, hadgemidx, :, :, :, 0]
-wv  = (v * w).sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wvarr[1] = wv / w.sum(axis = 2).sum(axis = 1).sum(axis = 0)
+dymarr[1] = median(dyarr[:, hadgemidx, :, 0], axis = 0)
 
 # all co2
-v = varr[:, :, :, :, :, 0]
-w = weights[:, :, :, :, :, 0]
-wv  = (v * w).sum(axis = 3).sum(axis = 2).sum(axis = 1).sum(axis = 0)
-wvarr[2] = wv / w.sum(axis = 3).sum(axis = 2).sum(axis = 1).sum(axis = 0)
+dymarr[2] = median(reshape(dyarr[:, :, :, 0], (nm * ng, nfpu)), axis = 0)
 
 filename, ext = splitext(mapfile)
 mapfiles = [filename + '.noco2' + ext, filename + '.co2.hadgem' + ext, filename + '.co2' + ext]
 filename, ext = splitext(ncfile)
 ncfiles = [filename + '.noco2' + ext, filename + '.co2.hadgem' + ext, filename + '.co2' + ext]
 
-for i in range(len(wvarr)):
+for i in range(len(dymarr)):
     # rasterize
-    varmap = masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons)))
+    dymap = masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons)))
     for j in range(len(validfpus)):
         fpuidx = where(fpu == validfpus[j])[0][0]
-        varmap[fpumap == validfpus[j]] = wvarr[i, fpuidx]
+        dymap[fpumap == validfpus[j]] = dymarr[i, fpuidx]
 
     # plot map and fpu boundaries
     plt.figure()
@@ -159,9 +168,7 @@ for i in range(len(wvarr)):
     # plot variable map
     glon, glat = meshgrid(lons, lats)
     x, y = m(glon, glat)
-    cs = m.pcolor(x, y, varmap, vmin = -100, vmax = 100, cmap = matplotlib.cm.RdYlGn)
-    cbar = m.colorbar(cs, location = 'right')
-    cbar.set_ticks(arange(-100, 120, 25))
+    cs = m.pcolor(x, y, dymap, vmin = -8, vmax = 8, cmap = matplotlib.cm.seismic)
     m.drawcoastlines()
     m.drawmapboundary()
     m.drawparallels(arange(90, -90, -30),  labels = [1, 0, 0, 0])
@@ -191,10 +198,6 @@ for i in range(len(wvarr)):
         fpuvar.units = 'FPU index'
         fpuvar.long_name = '309 Food Producing Units'
 
-        bmvar = f.createVariable(variable, 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
-        bmvar[:] = varmap
-        bmvar.long_name = variable
-
-        bfvar = f.createVariable(variable + '_fpu', 'f8', 'fpu', zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
-        bfvar[:] = wvarr[i]
-        bfvar.long_name = variable + ' at fpu level'
+        dyvar = f.createVariable(variable, 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
+        dyvar[:] = dymap
+        dyvar.long_name = variable

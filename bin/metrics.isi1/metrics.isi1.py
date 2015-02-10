@@ -2,10 +2,10 @@
 
 # import modules
 from re import findall
+from numpy import where
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
-from numpy import where, zeros, ones
-from numpy.ma import masked_array, reshape, resize
+from numpy.ma import reshape, resize
 
 # parse inputs
 parser = OptionParser()
@@ -54,22 +54,22 @@ dyglobal26 = reshape(global26, (ng, nd, 10)).mean(axis = 2) - resize(global26[:,
 dyglobal85 = reshape(global85, (ng, nd, 10)).mean(axis = 2) - resize(global85[:, tidx1 : tidx2].mean(axis = 1), (nd, ng)).T
 
 # metrics
-betafpu      = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
-betaglobal   = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
-lambdafpu    = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
-lambdaglobal = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
+# betafpu      = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
+# betaglobal   = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
+# lambdafpu    = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
+# lambdaglobal = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
 
 # beta
-negy             = dyfpu85 < -0.01
-betafpu[negy]    = 100 * (1 - dyfpu26[negy] / dyfpu85[negy])
-negy             = dyglobal85 < -0.01
-betaglobal[negy] = 100 * (1 - dyglobal26[negy] / dyglobal85[negy])
+# posy             = abs(dyfpu85) > 0.01
+# betafpu[posy]    = 100 * (1 - dyfpu26[posy] / dyfpu85[posy])
+# posy             = abs(dyglobal85) > 0.01
+# betaglobal[posy] = 100 * (1 - dyglobal26[posy] / dyglobal85[posy])
 
 # lambda
-posy               = dyfpu85 > 0.01
-lambdafpu[posy]    = 100 * (dyfpu26[posy] / dyfpu85[posy] - 1)
-posy               = dyglobal85 > 0.01
-lambdaglobal[posy] = 100 * (dyglobal26[posy] / dyglobal85[posy] - 1)
+# posy               = dyfpu85 > 0.01
+# lambdafpu[posy]    = 100 * (dyfpu26[posy] / dyfpu85[posy] - 1)
+# posy               = dyglobal85 > 0.01
+# lambdaglobal[posy] = 100 * (dyglobal26[posy] / dyglobal85[posy] - 1)
 
 with nc(outfile, 'w') as f:
     f.createDimension('fpu', nf)
@@ -90,22 +90,22 @@ with nc(outfile, 'w') as f:
     dvar.units = 'decades since from 1980'
     dvar.long_name = 'decade'
 
-    bfvar = f.createVariable('beta_fpu', 'f8', ('fpu', 'decade'))
-    bfvar[:] = betafpu
-    bfvar.units = ''
-    bfvar.long_name = '100 * (1 - delta yield rcp 2.6 / delta yield rcp 8.5) at fpu level'
+    df26var = f.createVariable('delta_yield_26_fpu', 'f8', ('fpu', 'decade'))
+    df26var[:] = dyfpu26
+    df26var.units = 't ha-1 yr-1'
+    df26var.long_name = 'delta between average decadal yield and average historical yield with RCP 2.6 at fpu level'
 
-    bgvar = f.createVariable('beta_global', 'f8', ('global', 'decade'))
-    bgvar[:] = betaglobal
-    bgvar.units = ''
-    bgvar.long_name = '100 * (1 - delta yield rcp 2.6 / delta yield rcp 8.5) at global level'
+    df85var = f.createVariable('delta_yield_85_fpu', 'f8', ('fpu', 'decade'))
+    df85var[:] = dyfpu85
+    df85var.units = 't ha-1 yr-1'
+    df85var.long_name = 'delta between average decadal yield and average historical yield with RCP 8.5 at fpu level'
 
-    lfvar = f.createVariable('lambda_fpu', 'f8', ('fpu', 'decade'))
-    lfvar[:] = lambdafpu
-    lfvar.units = ''
-    lfvar.long_name = '100 * (delta yield rcp 2.6 / delta yield rcp 8.5 - 1) at fpu level'
+    dg26var = f.createVariable('delta_yield_26_global', 'f8', ('global', 'decade'))
+    dg26var[:] = dyglobal26
+    dg26var.units = 't ha-1 yr-1'
+    dg26var.long_name = 'delta between average decadal yield and average historical yield with RCP 2.6 at global level'
 
-    lgvar = f.createVariable('lambda_global', 'f8', ('global', 'decade'))
-    lgvar[:] = lambdaglobal
-    lgvar.units = ''
-    lgvar.long_name = '100 * (delta yield rcp 2.6 / delta yield rcp 8.5 - 1) at global level'
+    dg85var = f.createVariable('delta_yield_85_global', 'f8', ('global', 'decade'))
+    dg85var[:] = dyglobal85
+    dg85var.units = 't ha-1 yr-1'
+    dg85var.long_name = 'delta between average decadal yield and average historical yield with RCP 8.5 at global level'
