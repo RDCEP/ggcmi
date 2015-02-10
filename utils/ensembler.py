@@ -1,10 +1,11 @@
 from re import findall
+from os.path import basename
 from itertools import product
 from netCDF4 import Dataset as nc
 from numpy.ma import masked_array, masked_where, argmin
-from numpy import inf, zeros, ones, logical_and, arange, resize
+from numpy import inf, zeros, ones, logical_and, arange, resize, where
 
-def makeMasked(sh): return masked_array(zeros(sh), mask = ones(sh))
+def makeMasked(sh, dtype = float): return masked_array(zeros(sh), mask = ones(sh), dtype = dtype)
 
 class Ensembler(object):
     def __init__(self, bcfiles, mmfiles, agglvl, metricname):
@@ -20,9 +21,14 @@ class Ensembler(object):
             self.cr          = f.variables['cr'].long_name.split(', ')
         naggs, ndt, nmp, ncr = len(self.aggs), len(self.dt), len(self.mp), len(self.cr)
 
-        self.tmin = inf
-        self.tmax = -inf
+        with nc(mmfiles[0]) as f:
+            self.metricunits = f.variables[metricname].units
+
+        self.models = [0] * self.nm
+        self.tmin   = inf
+        self.tmax   = -inf
         for i in range(self.nm):
+            self.models[i] = basename(bcfiles[i]).split('_')[0]
             with nc(bcfiles[i]) as f:
                 time        = f.variables['time'][:]
                 time_units  = f.variables['time'].units
@@ -62,19 +68,48 @@ class Ensembler(object):
 
         yield_detr_mean = makeMasked((naggs, ntime, ndt, nmp, ncr, nmodels, 2))
         yield_retr_mean = makeMasked((naggs, ntime, ndt, nmp, ncr, nmodels, 2))
+
+        model_order   = makeMasked((naggs, ndt, nmp, ncr, nmodels))
+        model_weights = makeMasked((naggs, ndt, nmp, ncr, nmodels))
+
         for a in range(naggs):
             for d, m, c in product(range(ndt), range(nmp), range(ncr)):
                 met = self.metrics[:, a, d, m, c]
                 ydt = self.yield_detr[:, a, :, d, m, c].T
                 yrt = self.yield_retr[:, a, :, d, m, c].T
 
-                yield_detr_mean[a, :, d, m, c] = self.__ensemble(met, ydt)
-                yield_retr_mean[a, :, d, m, c] = self.__ensemble(met, yrt)
+                # order models
+                order, weights = self.__order_models(met)
+                model_order[a, d, m, c]   = order + 1
+                model_weights[a, d, m, c] = weights
 
-        return yield_detr_mean, yield_retr_mean
+                # compute ensemble
+                yield_detr_mean[a, :, d, m, c] = self.__ensemble(met, ydt, order)
+                yield_retr_mean[a, :, d, m, c] = self.__ensemble(met, yrt, order)
 
-    def __ensemble(self, met, arr):
-        """ met: array of length nmodels, arr: matrix of size (ntime, nmodels) """
+        return yield_detr_mean, yield_retr_mean, model_order, model_weights
+
+    def __order_models(self, met):
+        nmodels = len(met)
+
+        order   = makeMasked((nmodels), dtype = int)
+        weights = makeMasked((nmodels))
+
+        if met.mask.all(): return order, weights
+
+        midx = where(~met.mask)[0]
+        metunmasked = met[~met.mask]
+
+        sortidx = [i[0] for i in sorted(enumerate(self.__cost(metunmasked)), key = lambda x: x[1])]
+        order[: len(sortidx)] = midx[sortidx]
+        weights[: len(sortidx)] = metunmasked[sortidx]
+
+        return order, weights
+
+    def __ensemble(self, met, arr, order):
+        """ met:   array of length nmodels of metrics,
+            arr:   matrix of size (ntime, nmodels) of data,
+            order: array of length nmodels indicating model order """
         ntime, nmodels = arr.shape
 
         sh = (ntime, nmodels, 2)
@@ -82,15 +117,11 @@ class Ensembler(object):
 
         if met.mask.all(): return mu # all metrics are masked
 
-        arr2 = arr[:, ~met.mask]
-        met2 = met[~met.mask]
+        order    = order[~order.mask]
+        nmodels2 = len(order)
 
-        nmodels2 = len(met2)
-
-        sortidx = [i[0] for i in sorted(enumerate(self.__cost(met2)), key = lambda x: x[1])]
-        metsort = met2[sortidx]
-        arrsort = arr2[:, sortidx]
-        metsort = resize(metsort, (ntime, nmodels2))
+        arrsort = arr[:, order]
+        metsort = resize(met[order], (ntime, nmodels2))
 
         metsort[arrsort.mask] = 0 # zero out masked
         arrsort[arrsort.mask] = 0
