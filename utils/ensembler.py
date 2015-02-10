@@ -3,7 +3,7 @@ from os.path import basename
 from itertools import product
 from netCDF4 import Dataset as nc
 from numpy.ma import masked_array, masked_where, argmin
-from numpy import inf, zeros, ones, logical_and, arange, resize, where
+from numpy import inf, zeros, ones, logical_and, arange, resize, where, array, unique
 
 def makeMasked(sh, dtype = float): return masked_array(zeros(sh), mask = ones(sh), dtype = dtype)
 
@@ -25,26 +25,36 @@ class Ensembler(object):
             self.metricunits = f.variables[metricname].units
 
         self.models = [0] * self.nm
+        self.scens  = array([])
         self.tmin   = inf
         self.tmax   = -inf
         for i in range(self.nm):
-            self.models[i] = basename(bcfiles[i]).split('_')[0]
-            with nc(bcfiles[i]) as f:
+            self.models[i] = basename(bcfiles[i]).split('_')[0] # model names
+
+            with nc(mmfiles[i]) as f: # scenarios
+                scens      = f.variables['scen'].long_name.split(', ')
+                self.scens = unique(list(self.scens) + scens)
+
+            with nc(bcfiles[i]) as f: # time
                 time        = f.variables['time'][:]
                 time_units  = f.variables['time'].units
                 time       += int(findall(r'\d+', time_units)[0])
                 self.tmin = min(self.tmin, time[0])
                 self.tmax = max(self.tmax, time[-1])
+
         self.time = arange(self.tmin, self.tmax + 1)
         ntime     = len(self.time)
 
         self.metrics    = makeMasked((self.nm, naggs, ndt, nmp, ncr))
         self.yield_detr = makeMasked((self.nm, naggs, ntime, ndt, nmp, ncr))
         self.yield_retr = makeMasked((self.nm, naggs, ntime, ndt, nmp, ncr))
+        self.top_scens  = makeMasked((self.nm, naggs, ndt, nmp, ncr))
+
         for i in range(self.nm):
             with nc(mmfiles[i]) as f:
                 metric  = f.variables[metricname][:, :, :, :, :, 0]
                 metric  = masked_where(metric < 0, metric) # mask negative values
+                scens   = f.variables['scen'].long_name.split(', ')
                 scenidx = argmin(self.__cost(metric), axis = 1)
 
             with nc(bcfiles[i]) as f:
@@ -62,15 +72,16 @@ class Ensembler(object):
                         self.metrics[i, a, d, m, c]             = metric[a, si, d, m, c]
                         self.yield_detr[i, a, inrange, d, m, c] = ydt[a, :, si, d, m, c]
                         self.yield_retr[i, a, inrange, d, m, c] = yrt[a, :, si, d, m, c]
+                        self.top_scens[i, a, d, m, c]           = where(self.scens == scens[si])[0][0] + 1
 
     def average(self):
         nmodels, naggs, ntime, ndt, nmp, ncr = self.yield_detr.shape
 
         yield_detr_mean = makeMasked((naggs, ntime, ndt, nmp, ncr, nmodels, 2))
         yield_retr_mean = makeMasked((naggs, ntime, ndt, nmp, ncr, nmodels, 2))
-
-        model_order   = makeMasked((naggs, ndt, nmp, ncr, nmodels))
-        model_weights = makeMasked((naggs, ndt, nmp, ncr, nmodels))
+        model_order     = makeMasked((naggs, ndt, nmp, ncr, nmodels))
+        model_weights   = makeMasked((naggs, ndt, nmp, ncr, nmodels))
+        top_scens       = makeMasked((naggs, ndt, nmp, ncr, nmodels))
 
         for a in range(naggs):
             for d, m, c in product(range(ndt), range(nmp), range(ncr)):
@@ -83,11 +94,15 @@ class Ensembler(object):
                 model_order[a, d, m, c]   = order + 1
                 model_weights[a, d, m, c] = weights
 
-                # compute ensemble
+                # select top scenarios
+                order = order[~order.mask]
+                top_scens[a, d, m, c, : len(order)] = self.top_scens[order, a, d, m, c]
+
+                # compute ensemble over top models and scenarios
                 yield_detr_mean[a, :, d, m, c] = self.__ensemble(met, ydt, order)
                 yield_retr_mean[a, :, d, m, c] = self.__ensemble(met, yrt, order)
 
-        return yield_detr_mean, yield_retr_mean, model_order, model_weights
+        return yield_detr_mean, yield_retr_mean, model_order, model_weights, top_scens
 
     def __order_models(self, met):
         nmodels = len(met)
@@ -117,7 +132,6 @@ class Ensembler(object):
 
         if met.mask.all(): return mu # all metrics are masked
 
-        order    = order[~order.mask]
         nmodels2 = len(order)
 
         arrsort = arr[:, order]

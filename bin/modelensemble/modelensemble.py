@@ -53,7 +53,7 @@ if not nmodels:
 
 ensembler = Ensembler(bcfiles, mmfiles, agglvl, metric)
 
-yield_detr, yield_retr, model_order, model_weights = ensembler.average()
+yield_detr, yield_retr, model_order, model_weights, top_scens = ensembler.average()
 
 tmin        = ensembler.tmin
 tmax        = ensembler.tmax
@@ -66,6 +66,7 @@ mp          = ensembler.mp
 cr          = ensembler.cr
 nm          = ensembler.nm
 models      = ensembler.models
+scens       = ensembler.scens
 metricunits = ensembler.metricunits
 
 outfile = outdir + sep + '%s_%s_hist_%s_annual_%d_%d.ensemble.nc4' % (metric, weather, crop, tmin, tmax)
@@ -75,3 +76,4 @@ fout.append('yield_detrend', yield_detr,    (agglvl, 'time', 'dt', 'mp', 'cr', '
 fout.append('yield_retrend', yield_retr,    (agglvl, 'time', 'dt', 'mp', 'cr', 'nm', 'wt'), 't ha-1 yr-1', 'average ensemble retrended yield')
 fout.append('model_order',   model_order,   (agglvl, 'dt', 'mp', 'cr', 'nm'),                'mapping',    ', '.join(models))
 fout.append('model_weights', model_weights, (agglvl, 'dt', 'mp', 'cr', 'nm'),                metricunits,  metric)
+fout.append('top_scens',     top_scens,     (agglvl, 'dt', 'mp', 'cr', 'nm'),                'mapping',    ', '.join(scens))
