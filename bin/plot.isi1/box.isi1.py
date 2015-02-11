@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from optparse import OptionParser
 from netCDF4 import Dataset as nc
 from matplotlib.patches import Polygon
-from numpy.ma import masked_array, reshape, arange, masked_where
+from numpy.ma import masked_array, reshape, arange, masked_where, median
 
 # parse inputs
 parser = OptionParser()
@@ -76,23 +76,35 @@ areas   = masked_where(varr.mask, areas)
 # average
 wvarr = (varr * weights * areas).sum(axis = 2) / areas.sum(axis = 2)
 
-bps = [0] * 3
+bps       = [0] * 3
+medianarr = zeros((3, nd))
+maxarr    = zeros((3, nd))
+minarr    = zeros((3, nd))
 
 plt.figure(figsize = (10, 5))
 ax = plt.subplot(111)
 
 # hadgem noco2
-p1 = wvarr[:, hadgemidx, :, 1]
+p1           = wvarr[:, hadgemidx, :, 1]
+medianarr[0] = median(p1, axis = 0)
+maxarr[0]    = p1.max(axis = 0)
+minarr[0]    = p1.min(axis = 0)
 bp1 = ax.boxplot(p1, positions = range(1, 4 * nd, 4))
 bps[0] = bp1
 
 # hadgem co2
-p2 = wvarr[:, hadgemidx, :, 0]
+p2           = wvarr[:, hadgemidx, :, 0]
+medianarr[1] = median(p2, axis = 0)
+maxarr[1]    = p2.max(axis = 0)
+minarr[1]    = p2.min(axis = 0)
 bp2 = ax.boxplot(p2, positions = range(2, 4 * nd, 4))
 bps[1] = bp2
 
 # all co2
-p3 = reshape(wvarr[:, :, :, 0], (nm * ng, nd))
+p3           = reshape(wvarr[:, :, :, 0], (nm * ng, nd))
+medianarr[2] = median(p3, axis = 0)
+maxarr[2]    = p3.max(axis = 0)
+minarr[2]    = p3.min(axis = 0)
 bp3 = ax.boxplot(p3, positions = range(3, 4 * nd, 4))
 bps[2] = bp3
 
@@ -115,6 +127,7 @@ plt.xlim([0, 4 * nd])
 plt.xticks(arange(2, 4 * nd, 4), ['%d-%d' % (d, d + 9) for d in decade], rotation = 45)
 plt.ylim([-8, 8])
 plt.yticks(arange(-8, 10, 2))
+plt.ylabel('Gcal/ha')
 plt.grid(which = 'major', axis = 'y')
 plt.tight_layout()
 
@@ -156,6 +169,24 @@ with nc(ncfile, 'w') as f:
     cvar.units = 'mapping'
     cvar.long_name = ', '.join(co2s)
 
+    f.createDimension('scen', len(medianarr))
+    svar = f.createVariable('scen', 'i4', 'scen')
+    svar[:] = range(1, 1 + len(medianarr))
+    svar.units = 'mapping'
+    svar.long_name = 'HadGEM-noCO2, HadGEM-CO2, CO2'
+
     bvar = f.createVariable(variable, 'f8', ('models', 'gcms', 'decade', 'co2'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
     bvar[:] = wvarr
-    bvar.long_name = variable + ' at global level'
+    bvar.long_name = '%s at global level' % variable
+
+    medianvar = f.createVariable('median_%s' % variable, 'f8', ('scen', 'decade'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
+    medianvar[:] = medianarr
+    medianvar.long_name = 'ensemble median of %s at global level' % variable
+
+    maxvar = f.createVariable('max_%s' % variable, 'f8', ('scen', 'decade'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
+    maxvar[:] = maxarr
+    maxvar.long_name = 'ensemble maximum of %s at global level' % variable
+
+    minvar = f.createVariable('min_%s' % variable, 'f8', ('scen', 'decade'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
+    minvar[:] = minarr
+    minvar.long_name = 'ensemble minimum of %s at global level' % variable

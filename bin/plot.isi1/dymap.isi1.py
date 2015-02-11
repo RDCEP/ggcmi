@@ -168,7 +168,7 @@ for i in range(len(dymarr)):
     # plot variable map
     glon, glat = meshgrid(lons, lats)
     x, y = m(glon, glat)
-    cs = m.pcolor(x, y, dymap, vmin = -8, vmax = 8, cmap = matplotlib.cm.seismic)
+    cs = m.pcolor(x, y, dymap, vmin = -8, vmax = 8, cmap = matplotlib.cm.seismic_r)
     m.drawcoastlines()
     m.drawmapboundary()
     m.drawparallels(arange(90, -90, -30),  labels = [1, 0, 0, 0])
@@ -200,4 +200,4 @@ for i in range(len(dymarr)):
 
         dyvar = f.createVariable(variable, 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
         dyvar[:] = dymap
-        dyvar.long_name = variable
+        dyvar.long_name = 'median %s' % variable

@@ -3,7 +3,7 @@
 export PATH=$PATH:$PWD
 
 swift -sites.file midway.xml -tc.file tc.data plot.isi1.swift \
-      -plots=blmap,dymap,box                                  \
+      -plots=blmap,dymap,cmap,box                             \
       -crops=maize,wheat,soy,rice,all
 
 # Remove run directories if Swift finishes with no errors

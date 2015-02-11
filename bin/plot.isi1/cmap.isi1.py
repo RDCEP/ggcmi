@@ -10,31 +10,20 @@ from optparse import OptionParser
 from netCDF4 import Dataset as nc
 from mpl_toolkits.basemap import Basemap
 from matplotlib.collections import LineCollection
-from numpy.ma import masked_array, masked_where, median, reshape
+from numpy.ma import masked_array, masked_where, reshape
 from numpy import zeros, ones, resize, meshgrid, arange, array, cos, pi, where
 
-# define colormaps
-cdict_beta = {'red': ((0.0, 0.0, 0.0),
-                      (0.5, 1.0, 1.0),
-                      (1.0, 0.0, 0.0)),
-              'green': ((0.0, 0.0, 0.0),
-                        (0.5, 1.0, 1.0),
-                        (1.0, 0.5, 0.0)),
-              'blue': ((0.0, 0.0, 0.5),
+# define colormap
+cdict_count = {'red': ((0.0, 1.0, 1.0),
                        (0.5, 1.0, 1.0),
-                       (1.0, 0.0, 0.0))
-             }
-
-cdict_lambda = {'red': ((0.0, 0.5, 0.5),
-                        (0.5, 1.0, 1.0),
-                        (1.0, 1.0, 1.0)),
-                'green': ((0.0, 0.0, 0.0),
-                          (0.5, 0.0, 0.0),
-                          (1.0, 1.0, 1.0)),
-                'blue': ((0.0, 0.0, 0.0),
+                       (1.0, 0.5, 0.5)),
+               'green': ((0.0, 1.0, 1.0),
                          (0.5, 0.0, 0.0),
-                         (1.0, 1.0, 1.0))
-               }
+                         (1.0, 0.0, 0.0)),
+               'blue': ((0.0, 1.0, 1.0),
+                        (0.5, 0.0, 0.0),
+                        (1.0, 0.0, 0.0))
+              }
 
 # parse inputs
 parser = OptionParser()
@@ -52,6 +41,8 @@ parser.add_option("-w", "--weightfile", dest = "weightfile", default = "maize.nc
                   help = "Weight file", metavar = "FILE")
 parser.add_option("-p", "--percent", dest = "percent", default = "0.1", type = "float",
                   help = "Percent threshold")
+parser.add_option("-v", "--variable", dest = "variable", default = "delta_yield_26", type = "string",
+                  help = "Variable to map")
 parser.add_option("-m", "--mapfile", dest = "mapfile", default = "map.png", type = "string",
                   help = "Output map file", metavar = "FILE")
 parser.add_option("-n", "--ncfile", dest = "ncfile", default = "map.nc4", type = "string",
@@ -65,6 +56,7 @@ hareafile  = options.hareafile
 shapefile  = options.shapefile
 weightfile = options.weightfile
 percent    = options.percent
+variable   = options.variable
 mapfile    = options.mapfile
 ncfile     = options.ncfile
 
@@ -115,18 +107,14 @@ hadgemidx = gcms.index('hadgem2-es')
 
 nm, ng, ncr, nco2 = len(models), len(gcms), len(crops), len(co2s)
 
-# variables
+# variable
 sh = (nm, ng, ncr, 3, nfpu, nco2)
-dy26arr = masked_array(zeros(sh), mask = ones(sh))
-dy85arr = masked_array(zeros(sh), mask = ones(sh))
+dyarr = masked_array(zeros(sh), mask = ones(sh))
 with nc(infile) as f:
     for m, g, c, co in product(range(nm), range(ng), range(ncr), range(nco2)):
-        var = 'delta_yield_26_fpu_%s_%s_%s_%s' % (models[m], gcms[g], crops[c], co2s[co])
+        var = '%s_fpu_%s_%s_%s_%s' % (variable, models[m], gcms[g], crops[c], co2s[co])
         if var in f.variables:
-            dy26arr[m, g, c, :, :, co] = f.variables[var][:, -3 :].T # last three decades
-        var = 'delta_yield_85_fpu_%s_%s_%s_%s' % (models[m], gcms[g], crops[c], co2s[co])
-        if var in f.variables:
-            dy85arr[m, g, c, :, :, co] = f.variables[var][:, -3 :].T
+            dyarr[m, g, c, :, :, co] = f.variables[var][:, -3 :].T # last three decades
 
 # weights
 weights = masked_array(zeros(sh), mask = ones(sh))
@@ -136,53 +124,34 @@ for i in range(ncr):
     for f in range(nfpu):
         fpuidx = where(cfpu == fpu[f])[0][0]
         areas[:, :, i, :, f] = careas[crops[i]][fpuidx]
-weights = masked_where(dy26arr.mask, weights) # mask
-areas   = masked_where(dy26arr.mask, areas)
+weights = masked_where(dyarr.mask, weights) # mask
+areas   = masked_where(dyarr.mask, areas)
 
 # average over crops and decades
-dy26arr = (dy26arr * weights * areas).sum(axis = 3).sum(axis = 2) / areas.sum(axis = 3).sum(axis = 2)
-dy85arr = (dy85arr * weights * areas).sum(axis = 3).sum(axis = 2) / areas.sum(axis = 3).sum(axis = 2)
+dyarr = (dyarr * weights * areas).sum(axis = 3).sum(axis = 2) / areas.sum(axis = 3).sum(axis = 2)
 
-barr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
-larr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
+carr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
 
 # hadgem noco2
-dy26m = median(dy26arr[:, hadgemidx, :, 1], axis = 0)
-dy85m = median(dy85arr[:, hadgemidx, :, 1], axis = 0)
-negy = dy85m < -0.01
-barr[0, negy] = 100 * (1 - dy26m[negy] / dy85m[negy])
-posy = dy85m > 0.01
-larr[0, posy] = 100 * (dy26m[posy] / dy85m[posy] - 1)
+carr[0] = (dyarr[:, hadgemidx, :, 1] < 0).sum(axis = 0)
 
 # hadgem co2
-dy26m = median(dy26arr[:, hadgemidx, :, 0], axis = 0)
-dy85m = median(dy85arr[:, hadgemidx, :, 0], axis = 0)
-negy = dy85m < -0.01
-barr[1, negy] = 100 * (1 - dy26m[negy] / dy85m[negy])
-posy = dy85m > 0.01
-larr[1, posy] = 100 * (dy26m[posy] / dy85m[posy] - 1)
+carr[1] = (dyarr[:, hadgemidx, :, 0] < 0).sum(axis = 0)
 
 # all co2
-dy26m = median(reshape(dy26arr[:, :, :, 0], (nm * ng, nfpu)), axis = 0)
-dy85m = median(reshape(dy85arr[:, :, :, 0], (nm * ng, nfpu)), axis = 0)
-negy = dy85m < -0.01
-barr[2, negy] = 100 * (1 - dy26m[negy] / dy85m[negy])
-posy = dy85m > 0.01
-larr[2, posy] = 100 * (dy26m[posy] / dy85m[posy] - 1)
+carr[2] = (reshape(dyarr[:, :, :, 0], (nm * ng, nfpu)) < 0).sum(axis = 0)
 
 filename, ext = splitext(mapfile)
 mapfiles = [filename + '.noco2' + ext, filename + '.co2.hadgem' + ext, filename + '.co2' + ext]
 filename, ext = splitext(ncfile)
 ncfiles = [filename + '.noco2' + ext, filename + '.co2.hadgem' + ext, filename + '.co2' + ext]
 
-for i in range(len(barr)):
+for i in range(len(carr)):
     # rasterize
-    bmap = masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons)))
-    lmap = masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons)))
+    cmap = masked_array(zeros((nlats, nlons)), mask = ones((nlats, nlons)))
     for j in range(len(validfpus)):
         fpuidx = where(fpu == validfpus[j])[0][0]
-        bmap[fpumap == validfpus[j]] = barr[i, fpuidx]
-        lmap[fpumap == validfpus[j]] = larr[i, fpuidx]
+        cmap[fpumap == validfpus[j]] = carr[i, fpuidx]
 
     # plot map and fpu boundaries
     plt.figure()
@@ -211,8 +180,7 @@ for i in range(len(barr)):
     # plot variable map
     glon, glat = meshgrid(lons, lats)
     x, y = m(glon, glat)
-    cs1 = m.pcolor(x, y, bmap, vmin = -100, vmax = 100, cmap = matplotlib.colors.LinearSegmentedColormap('BlueGreen', cdict_beta))
-    cs2 = m.pcolor(x, y, lmap, vmin = -100, vmax = 0, cmap = matplotlib.colors.LinearSegmentedColormap('BlueGreen', cdict_lambda))
+    cs = m.pcolor(x, y, cmap, vmin = 0, vmax = 30, cmap = matplotlib.colors.LinearSegmentedColormap('RedScale2', cdict_count))
     m.drawcoastlines()
     m.drawmapboundary()
     m.drawparallels(arange(90, -90, -30),  labels = [1, 0, 0, 0])
@@ -242,10 +210,6 @@ for i in range(len(barr)):
         fpuvar.units = 'FPU index'
         fpuvar.long_name = '309 Food Producing Units'
 
-        bmvar = f.createVariable('beta', 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
-        bmvar[:] = bmap
-        bmvar.long_name = '100 * (1 - delta yield RCP 2.6 / delta yield RCP 8.5)'
-
-        lmvar = f.createVariable('lambda', 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
-        lmvar[:] = lmap
-        lmvar.long_name = '100 * (delta yield RCP 2.6 / delta yield RCP 8.5 - 1)'
+        cvar = f.createVariable(variable, 'f8', ('lat', 'lon'), zlib = True, shuffle = False, complevel = 9, fill_value = 1e20)
+        cvar[:] = cmap
+        cvar.long_name = 'count of %s < 0' % variable
