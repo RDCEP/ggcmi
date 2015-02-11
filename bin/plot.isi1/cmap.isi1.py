@@ -14,13 +14,13 @@ from numpy.ma import masked_array, masked_where, reshape
 from numpy import zeros, ones, resize, meshgrid, arange, array, cos, pi, where
 
 # define colormap
-cdict_count = {'red': ((0.0, 1.0, 1.0),
-                       (0.5, 1.0, 1.0),
-                       (1.0, 0.5, 0.5)),
-               'green': ((0.0, 1.0, 1.0),
-                         (0.5, 0.0, 0.0),
+cdict_count = {'red': ((0.0, 0.0, 0.0),
+                       (0.5, 0.375, 0.375),
+                       (1.0, 0.75, 0.75)),
+               'green': ((0.0, 0.75, 0.75),
+                         (0.5, 0.375, 0.375),
                          (1.0, 0.0, 0.0)),
-               'blue': ((0.0, 1.0, 1.0),
+               'blue': ((0.0, 0.0, 0.0),
                         (0.5, 0.0, 0.0),
                         (1.0, 0.0, 0.0))
               }
@@ -133,13 +133,13 @@ dyarr = (dyarr * weights * areas).sum(axis = 3).sum(axis = 2) / areas.sum(axis =
 carr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
 
 # hadgem noco2
-carr[0] = (dyarr[:, hadgemidx, :, 1] < 0).sum(axis = 0)
+carr[0] = (dyarr[:, hadgemidx, :, 1] < 0).sum(axis = 0) * 100. / nm # convert to percent
 
 # hadgem co2
-carr[1] = (dyarr[:, hadgemidx, :, 0] < 0).sum(axis = 0)
+carr[1] = (dyarr[:, hadgemidx, :, 0] < 0).sum(axis = 0) * 100. / nm
 
 # all co2
-carr[2] = (reshape(dyarr[:, :, :, 0], (nm * ng, nfpu)) < 0).sum(axis = 0)
+carr[2] = (reshape(dyarr[:, :, :, 0], (nm * ng, nfpu)) < 0).sum(axis = 0) * 100. / (nm * ng)
 
 filename, ext = splitext(mapfile)
 mapfiles = [filename + '.noco2' + ext, filename + '.co2.hadgem' + ext, filename + '.co2' + ext]
@@ -180,7 +180,7 @@ for i in range(len(carr)):
     # plot variable map
     glon, glat = meshgrid(lons, lats)
     x, y = m(glon, glat)
-    cs = m.pcolor(x, y, cmap, vmin = 0, vmax = 30, cmap = matplotlib.colors.LinearSegmentedColormap('RedScale2', cdict_count))
+    cs = m.pcolor(x, y, cmap, vmin = 0, vmax = 100, cmap = matplotlib.colors.LinearSegmentedColormap('RedGreen', cdict_count))
     m.drawcoastlines()
     m.drawmapboundary()
     m.drawparallels(arange(90, -90, -30),  labels = [1, 0, 0, 0])
