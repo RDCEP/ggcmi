@@ -34,4 +34,8 @@ cd /project/joshuaelliott/ggcmi/bin/rescaler
 cd /project/joshuaelliott/ggcmi/bin/downscaler
 ./downscaler.sh
 
+# Rescaled ensemble
+cd /project/joshuaelliott/ggcmi/bin/rescaler.ensemble
+./rescaler.ensemble.sh
+
 cd $dir
