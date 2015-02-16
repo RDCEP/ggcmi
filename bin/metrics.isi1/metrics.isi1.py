@@ -50,26 +50,10 @@ nd = nt / 10
 # delta yield
 dyfpu26 = reshape(fpu26, (nf, nd, 10)).mean(axis = 2) - resize(fpu26[:, tidx1 : tidx2].mean(axis = 1), (nd, nf)).T
 dyfpu85 = reshape(fpu85, (nf, nd, 10)).mean(axis = 2) - resize(fpu85[:, tidx1 : tidx2].mean(axis = 1), (nd, nf)).T
-dyglobal26 = reshape(global26, (ng, nd, 10)).mean(axis = 2) - resize(global26[:, tidx1 : tidx2].mean(axis = 1), (nd, ng)).T
-dyglobal85 = reshape(global85, (ng, nd, 10)).mean(axis = 2) - resize(global85[:, tidx1 : tidx2].mean(axis = 1), (nd, ng)).T
 
-# metrics
-# betafpu      = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
-# betaglobal   = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
-# lambdafpu    = masked_array(zeros((nf, nd)), mask = ones((nf, nd)))
-# lambdaglobal = masked_array(zeros((ng, nd)), mask = ones((ng, nd)))
-
-# beta
-# posy             = abs(dyfpu85) > 0.01
-# betafpu[posy]    = 100 * (1 - dyfpu26[posy] / dyfpu85[posy])
-# posy             = abs(dyglobal85) > 0.01
-# betaglobal[posy] = 100 * (1 - dyglobal26[posy] / dyglobal85[posy])
-
-# lambda
-# posy               = dyfpu85 > 0.01
-# lambdafpu[posy]    = 100 * (dyfpu26[posy] / dyfpu85[posy] - 1)
-# posy               = dyglobal85 > 0.01
-# lambdaglobal[posy] = 100 * (dyglobal26[posy] / dyglobal85[posy] - 1)
+# absolute global yield
+global26 = reshape(global26, (ng, nd, 10)).mean(axis = 2)
+global85 = reshape(global85, (ng, nd, 10)).mean(axis = 2)
 
 with nc(outfile, 'w') as f:
     f.createDimension('fpu', nf)
@@ -100,12 +84,12 @@ with nc(outfile, 'w') as f:
     df85var.units = 't ha-1 yr-1'
     df85var.long_name = 'delta between average decadal yield and average historical yield with RCP 8.5 at fpu level'
 
-    dg26var = f.createVariable('delta_yield_26_global', 'f8', ('global', 'decade'))
-    dg26var[:] = dyglobal26
-    dg26var.units = 't ha-1 yr-1'
-    dg26var.long_name = 'delta between average decadal yield and average historical yield with RCP 2.6 at global level'
+    g26var = f.createVariable('yield_26_global', 'f8', ('global', 'decade'))
+    g26var[:] = global26
+    g26var.units = 't ha-1 yr-1'
+    g26var.long_name = 'average decadal yield with RCP 2.6 at global level'
 
-    dg85var = f.createVariable('delta_yield_85_global', 'f8', ('global', 'decade'))
-    dg85var[:] = dyglobal85
-    dg85var.units = 't ha-1 yr-1'
-    dg85var.long_name = 'delta between average decadal yield and average historical yield with RCP 8.5 at global level'
+    g85var = f.createVariable('yield_85_global', 'f8', ('global', 'decade'))
+    g85var[:] = global85
+    g85var.units = 't ha-1 yr-1'
+    g85var.long_name = 'average decadal yield with RCP 8.5 at global level'

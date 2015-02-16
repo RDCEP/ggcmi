@@ -49,7 +49,7 @@ elif [ $plot = cmap ]; then
                                                               -n $odir/files/${plot}_${var}_${crop}.nc4
    done
 elif [ $plot = box ]; then
-   for var in delta_yield_26 delta_yield_85; do
+   for var in yield_26 yield_85; do
       /project/joshuaelliott/ggcmi/bin/plot.isi1/box.isi1.py -i $mfile                                 \
                                                              -c $crop                                  \
                                                              -r $hgfile                                \

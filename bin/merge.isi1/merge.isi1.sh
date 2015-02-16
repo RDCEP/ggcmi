@@ -48,8 +48,8 @@ for m in ${models[@]}; do
 
                 ncrename -O -h -v delta_yield_26_fpu,delta_yield_26_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
                 ncrename -O -h -v delta_yield_85_fpu,delta_yield_85_fpu_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v delta_yield_26_global,delta_yield_26_global_${ml}_${gl}_${c}_${co} $outfile $outfile
-                ncrename -O -h -v delta_yield_85_global,delta_yield_85_global_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v yield_26_global,yield_26_global_${ml}_${gl}_${c}_${co} $outfile $outfile
+                ncrename -O -h -v yield_85_global,yield_85_global_${ml}_${gl}_${c}_${co} $outfile $outfile
             done
         done
     done

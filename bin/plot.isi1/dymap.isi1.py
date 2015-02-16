@@ -115,8 +115,8 @@ for i in range(ncr):
 weights = masked_where(dyarr.mask, weights) # mask
 areas   = masked_where(dyarr.mask, areas)
 
-# average over crops and decades
-dyarr = (dyarr * weights * areas).sum(axis = 3).sum(axis = 2) / areas.sum(axis = 3).sum(axis = 2)
+# sum over crops and average over decades
+dyarr = (dyarr * weights * areas).mean(axis = 3).sum(axis = 2) / 1e6 # Gcal -> Pcal
 
 dymarr = masked_array(zeros((3, nfpu)), mask = ones((3, nfpu)))
 
@@ -168,7 +168,7 @@ for i in range(len(dymarr)):
     # plot variable map
     glon, glat = meshgrid(lons, lats)
     x, y = m(glon, glat)
-    cs = m.pcolor(x, y, dymap, vmin = -8, vmax = 8, cmap = matplotlib.cm.seismic_r)
+    cs = m.pcolor(x, y, dymap, vmin = -30, vmax = 30, cmap = matplotlib.cm.seismic_r)
     m.drawcoastlines()
     m.drawmapboundary()
     m.drawparallels(arange(90, -90, -30),  labels = [1, 0, 0, 0])

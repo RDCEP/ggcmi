@@ -73,8 +73,8 @@ for i in range(ncr):
 weights = masked_where(varr.mask, weights) # mask
 areas   = masked_where(varr.mask, areas)
 
-# average
-wvarr = (varr * weights * areas).sum(axis = 2) / areas.sum(axis = 2)
+# convert to Pcal
+wvarr = (varr * weights * areas).sum(axis = 2) / 1e6 # Gcal -> Pcal
 
 bps       = [0] * 3
 medianarr = zeros((3, nd))
@@ -125,9 +125,9 @@ for i in range(len(bps)):
 
 plt.xlim([0, 4 * nd])
 plt.xticks(arange(2, 4 * nd, 4), ['%d-%d' % (d, d + 9) for d in decade], rotation = 45)
-plt.ylim([-8, 8])
-plt.yticks(arange(-8, 10, 2))
-plt.ylabel('Gcal/ha')
+plt.ylim([2000, 10000])
+plt.yticks(arange(2000, 11000, 1000))
+plt.ylabel('Pcal')
 plt.grid(which = 'major', axis = 'y')
 plt.tight_layout()
 

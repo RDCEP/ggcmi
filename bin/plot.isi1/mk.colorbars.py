@@ -72,11 +72,11 @@ f = plt.figure(3, figsize = (1.3, 5))
 ax = f.add_axes([0.2, 0.05, 0.25, 0.9])
 
 cmap = matplotlib.cm.seismic_r
-norm = matplotlib.colors.Normalize(vmin = -8, vmax = 8)
+norm = matplotlib.colors.Normalize(vmin = -30, vmax = 30)
 
 cb = matplotlib.colorbar.ColorbarBase(ax, cmap = cmap, norm = norm, orientation = 'vertical')
-cb.set_ticks(arange(-8, 10, 2))
-cb.set_label(r'Gcal/ha')
+cb.set_ticks(arange(-30, 40, 10))
+cb.set_label(r'Pcal')
 
 plt.show()
 plt.savefig('cb_delta_yield.png')
@@ -86,7 +86,7 @@ plt.close()
 f = plt.figure(4, figsize = (1.3, 5))
 ax = f.add_axes([0.2, 0.05, 0.25, 0.9])
 
-cmap = matplotlib.colors.LinearSegmentedColormap('RedScale2', cdict_count)
+cmap = matplotlib.colors.LinearSegmentedColormap('RedGreen', cdict_count)
 norm = matplotlib.colors.Normalize(vmin = 0, vmax = 100)
 
 cb = matplotlib.colorbar.ColorbarBase(ax, cmap = cmap, norm = norm, orientation = 'vertical')
