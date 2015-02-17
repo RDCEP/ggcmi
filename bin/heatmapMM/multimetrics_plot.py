@@ -130,9 +130,13 @@ for m, w, cp in product(range(nm), range(nw), range(ncp)):
     if len(file) == 1:
         with nc(options.dir + sep + file[0]) as f:
             if models[m] in ['rmse', 'tscorr']:
+                nm = f.variables['nm'][:]
+                wt = f.variables['wt'][:]
+
                 sidx  = where(scens == 'optimal')[0][0]
-                nmidx = where(f.variables['nm'][:] == options.nm)[0][0]
-                wtidx = where(f.variables['wt'][:] == options.wt)[0][0]
+                nmidx = where(nm == options.nm)[0][0] if options.nm <= nm.max() else len(nm) - 1
+                wtidx = where(wt == options.wt)[0][0]
+
                 data[m, w, cp, :, sidx] = f.variables[options.metric][:, :, :, :, :, nmidx, wtidx]
             else:
                 scen = f.variables['scen'].long_name.split(', ')
