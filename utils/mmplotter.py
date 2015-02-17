@@ -113,8 +113,7 @@ class MMPlotter(object):
         ax.set_yticks(arange(len(y2)), minor = True)
         ax.invert_yaxis()
         if self.anon:
-            x_labels  = ['%s %d' % (x_label, i) for i in range(1, len(x2))]
-            x_labels += ['best']
+            x_labels = ['%s %d' % (x_label, i) for i in range(1, len(x2))] + ['best']
             ax.set_xticklabels(x_labels, minor = False)
         else:
             ax.set_xticklabels(x2, minor = False)
@@ -206,7 +205,7 @@ class MMPlotter(object):
         arr_out = (wts_full * arr_out).sum(axis = varidx) / wts_full.sum(axis = varidx) # average over variable
 
         arr_out = resize(arr_out, arr_out.shape + (1,))
-        dims_out[var] = ['averaged']
+        dims_out[var] = ['ave']
 
         return arr_out, dims_out
 
