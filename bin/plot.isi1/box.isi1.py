@@ -51,7 +51,7 @@ gcms   = ['gfdl-esm2m', 'hadgem2-es', 'ipsl-cm5a-lr', 'miroc-esm-chem', 'noresm1
 crops  = ['maize', 'wheat', 'soy', 'rice'] if crop == 'all' else [crop]
 co2s   = ['co2', 'noco2']
 
-hadgemidx = gcms.index('hadgem2-es')
+hadgemidx  = gcms.index('hadgem2-es')
 
 nm, ng, ncr, nd, nco2 = len(models), len(gcms), len(crops), len(decade), len(co2s)
 
@@ -63,6 +63,16 @@ with nc(infile) as f:
         var = '%s_global_%s_%s_%s_%s' % (variable, models[m], gcms[g], crops[c], co2s[co])
         if var in f.variables:
             varr[m, g, c, :, co] = f.variables[var][0, :] # all decades
+
+if crop == 'all':
+    # replace rice for pegasus with median over other crops
+    pegasusidx = models.index('pegasus')
+    riceidx    = crops.index('rice')
+    notriceidx = range(len(crops))
+    notriceidx.pop(riceidx);
+
+    for g, co in product(range(ng), range(nco2)):
+        varr[pegasusidx, g, riceidx, :, co] = median(varr[pegasusidx, g, notriceidx, :, co], axis = 0)
 
 # weights
 weights = masked_array(zeros(sh), mask = ones(sh))
