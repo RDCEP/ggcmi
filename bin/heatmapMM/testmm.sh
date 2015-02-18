@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PATH=$PATH:/project/joshuaelliott/ggcmi/utils
+
 range="1980-2009"
 mp=true
 cr="mean-scale"
