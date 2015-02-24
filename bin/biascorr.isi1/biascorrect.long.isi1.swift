@@ -1,20 +1,23 @@
 type file;
 
-app (file o) bcpdssatisi1 (string gcm, string crop, string co2, string rcp) {
-   bcpdssatisi1 gcm crop co2 rcp stdout = @o;
+app (file o) bclongisi1 (string model, string gcm, string crop, string co2, string rcp) {
+   bclongisi1 model gcm crop co2 rcp stdout = @o;
 }
 
-string gcms[]  = strsplit(arg("gcms"), ",");
-string crops[] = strsplit(arg("crops"), ",");
-string co2s[]  = strsplit(arg("co2s"), ",");
-string rcps[]  = strsplit(arg("rcps"), ",");
+string models[] = strsplit(arg("models"), ",");
+string gcms[]   = strsplit(arg("gcms"), ",");
+string crops[]  = strsplit(arg("crops"), ",");
+string co2s[]   = strsplit(arg("co2s"), ",");
+string rcps[]   = strsplit(arg("rcps"), ",");
 
-foreach g in gcms {
-   foreach c in crops {
-      foreach co in co2s {
-         foreach r in rcps {
-            file logfile <single_file_mapper; file = strcat("logs/", g, ".", c, ".", co, ".", r, ".txt")>;
-            logfile = bcpdssatisi1(g, c, co, r);
+foreach m in models {
+   foreach g in gcms {
+      foreach c in crops {
+         foreach co in co2s {
+            foreach r in rcps {
+               file logfile <single_file_mapper; file = strcat("logs/", m, ".", g, ".", c, ".", co, ".", r, ".txt")>;
+               logfile = bclongisi1(m, g, c, co, r);
+            }
          }
       }
    }

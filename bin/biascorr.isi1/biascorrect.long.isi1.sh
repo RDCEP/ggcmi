@@ -18,26 +18,25 @@ function shortnames {
     echo $sname
 }
 
-g=$1
-cf=$2
-co=$3
-r=$4
+mod=$1
+g=$2
+cf=$3
+co=$4
+r=$5
 
-mod=pDSSAT
-
-idir=/project/ggcmi/isi1/isi1.pdssat.agg/$mod/$g/$cf/$r/$co
-odir=/project/ggcmi/isi1/isi1.pdssat.biascorr/$mod/$g/$cf/$r/$co
-
-cs=$(shortnames $cf)
-if=$idir/${mod,,}_${g,,}_ssp2_${co}_yield_${cs}_annual_1951_2099.nc4
-of=$odir/$(basename $if)
+idir=/project/ggcmi/isi1/isi1.long.agg/$mod/$g/$cf/$r/$co
+odir=/project/ggcmi/isi1/isi1.long.biascorr/$mod/$g/$cf/$r/$co
 
 fpufile=/project/ggcmi/AgMIP.input/other.inputs/reference/iizumi/iizumi.1982-2006.fpu.fixed_iizumi_mask.nc4
 gadmfile=/project/ggcmi/AgMIP.input/other.inputs/reference/iizumi/iizumi.1982-2006.gadm0.fixed_iizumi_mask.nc4
 globalfile=/project/ggcmi/AgMIP.input/other.inputs/reference/iizumi/iizumi.1982-2006.global.fixed_iizumi_mask.nc4
 
-if [ -f $if ]; then
-   mkdir -p $odir 
+if [ -d $idir ] && [ $(ls $idir | wc -l) = 1 ]; then
+   mkdir -p $odir
+
+   cs=$(shortnames $cf)
+   if=$idir/$(ls $idir)
+   of=$odir/$(basename $if)
 
    # fpu
    /project/joshuaelliott/ggcmi/bin/biascorr.isi1/biascorrect.isi1.py -i $if -r $fpufile -a fpu -o $odir
