@@ -18,26 +18,23 @@ function shortnames {
     echo $sname
 }
 
-g=$1
-cf=$2
-co=$3
-r=$4
+mod=$1
+g=$2
+cf=$3
+co=$4
+r=$5
 
-mod=pDSSAT
-
-idir=/project/ggcmi/isi1/isi1.pdssat.clean/$mod/$g/$cf/$r/$co
-odir=/project/ggcmi/isi1/isi1.pdssat.agg
+idir=/project/ggcmi/isi1/isi1.long.clean/$mod/$g/$cf/$r/$co
+odir=/project/ggcmi/isi1/isi1.long.agg/$mod/$g/$cf/$r/$co
 
 wdir=/project/ggcmi/AgMIP.output/processed/masks/weight
 mfile=/project/ggcmi/AgMIP.output/processed/masks/aggr/fpu.gadm.global.mask.nc4
 
-cs=$(shortnames $cf)
-f=$idir/${mod,,}_${g,,}_ssp2_${co}_yield_${cs}_annual_1951_2099.nc4
-
-if [ -f $f ]; then
-   fdir=$odir/$mod/$g/$cf/$r/$co
-   mkdir -p $fdir
-   /project/joshuaelliott/ggcmi/bin/agg.isi1/agg.out.py -i $f:yield_${cs} -w $wdir/$cf.nc4 -a $mfile -l time -n 10 -y yield_${cs} -o $fdir/$(basename $f) 
+if [ -d $idir ] && [ $(ls $idir | wc -l) = 1 ]; then
+   f=$idir/$(ls $idir)
+   cs=$(shortnames $cf)
+   mkdir -p $odir
+   /project/joshuaelliott/ggcmi/bin/agg.isi1/agg.out.py -i $f:yield_${cs} -w $wdir/$cf.nc4 -a $mfile -l time -n 10 -y yield_${cs} -o $odir/$(basename $f) 
 else
    echo No data for $mod, $g, $cf, $co, $r . . .
    exit
