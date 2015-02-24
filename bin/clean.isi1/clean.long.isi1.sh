@@ -74,7 +74,7 @@ for ((i = 0; i < ${#irrs[@]}; i++)); do # irrigation
 
     # historical
     ncrcat -h $hdir/*yield* hist.nc4
-    ncap2 -O -h -s 'time(:)={${timeh%?}}' hist.nc4 hist.nc4
+    ncap2 -O -h -s "time(:)={$timeh}" hist.nc4 hist.nc4
     ncatted -O -h -a units,time,m,c,"years since ${syear}-01-01" hist.nc4 hist.nc4
     ncecat -O -h -u irr hist.nc4 hist.nc4 &> /dev/null
     ncap2 -O -h -s "irr[irr]=$i" hist.nc4 hist.nc4
@@ -86,7 +86,7 @@ for ((i = 0; i < ${#irrs[@]}; i++)); do # irrigation
 
     # future
     ncrcat -h $fdir/*yield* rcp.final.nc4
-    ncap2 -O -h -s 'time(:)={${timef%?}}' rcp.final.nc4 rcp.final.nc4
+    ncap2 -O -h -s "time(:)={$timef}" rcp.final.nc4 rcp.final.nc4
     ncatted -O -h -a units,time,m,c,"years since ${syear}-01-01" rcp.final.nc4 rcp.final.nc4
     ncecat -O -h -u irr rcp.final.nc4 rcp.final.nc4 &> /dev/null
     ncap2 -O -h -s "irr[irr]=$i" rcp.final.nc4 rcp.final.nc4
