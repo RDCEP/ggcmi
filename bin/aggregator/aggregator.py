@@ -190,14 +190,16 @@ for i in range(len(scens_full)):
 
     # load yield file
     yieldfile = findfile(files, scen_irr, 'yield')
-    if yieldfile == []: continue
-    with nc(indir + sep + yieldfile) as f:
-        yvar = f.variables['yield_' + crop][:]
-        yvar = shiftdata(yvar, pd, hd, yearthr)     # shift data
-        yvar = masked_where(yvar < yieldthr1, yvar) # mask yields below threshold
-        yvar = masked_where(yvar > yieldthr2, yvar) # mask yields above threshold
-        yvar = yvar[yrsinrange]                     # restrict to overlapping years
-        ymsk = logical_not(yvar.mask)
+    if yieldfile == []:
+        yvar = masked_array(zeros(pd.shape), mask = zeros(pd.shape))
+    else:
+        with nc(indir + sep + yieldfile) as f:
+            yvar = f.variables['yield_' + crop][:]
+            yvar = shiftdata(yvar, pd, hd, yearthr)     # shift data
+            yvar = masked_where(yvar < yieldthr1, yvar) # mask yields below threshold
+            yvar = masked_where(yvar > yieldthr2, yvar) # mask yields above threshold
+            yvar = yvar[yrsinrange]                     # restrict to overlapping years
+    ymsk = logical_not(yvar.mask)
 
     # compute areas
     areas[:, :, sidx, iidx] = avobj.areas(yvar, adata, lats, weights[iidx], calcarea)

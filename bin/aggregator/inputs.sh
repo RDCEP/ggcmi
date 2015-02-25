@@ -6,6 +6,8 @@ adir=/project/ggcmi/AgMIP.output/processed/masks/aggr
 gdir=/project/ggcmi/AgMIP.input/other.inputs/agmip_growing_season.1.23.processed
 odir=/project/ggcmi/AgMIP.output/processed/aggs
 
+mods=(pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku CGMS-WOFOST CLM-Crop EPIC-TAMU ORCHIDEE ORCHIDEE-crop PEPIC PRYSBI2)
+
 cropl=(maize wheat rice soy sorghum millet)
 crops=(mai whe ric soy sor mil)
 
@@ -15,7 +17,7 @@ wyears=(1980_2010 1980_2010 1980_2010 1979_2010 1961_2010 1958_2001 1979_2012 19
 # Header
 echo indir crop lufile agg gsfile outfile
 
-for m in pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku; do
+for m in ${mods[@]}; do
    for ((w = 0; w < ${#weaths[@]}; w++)); do
       weath=${weaths[$w]}
       wyear=${wyears[$w]}
