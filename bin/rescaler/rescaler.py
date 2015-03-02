@@ -9,7 +9,7 @@ from re import findall
 from netCDF4 import Dataset as nc
 from optparse import OptionParser
 from filespecs import RescaledFile
-from os.path import basename, splitext
+from os.path import basename, splitext, isfile
 from numpy.ma import masked_array, masked_where
 from numpy import ones, zeros, where, isnan, cos, pi, resize, logical_and
 
@@ -98,8 +98,9 @@ with nc(irfile) as f:
 
     varr[:, :, :, 0] = var[logical_and(ftime >= time[0], ftime <= time[-1])]
 
-with nc(rffile) as f:
-    varr[:, :, :, 1] = f.variables[vname][logical_and(ftime >= time[0], ftime <= time[-1])]
+if isfile(rffile):
+    with nc(rffile) as f:
+        varr[:, :, :, 1] = f.variables[vname][logical_and(ftime >= time[0], ftime <= time[-1])]
 
 varr[isnan(varr)] = 0.
 

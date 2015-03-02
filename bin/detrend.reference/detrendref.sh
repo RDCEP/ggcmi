@@ -1,13 +1,13 @@
 #!/bin/bash
 
-indir=/project/ggcmi/AgMIP.input/other.inputs/reference
-
 PATH=$PATH:/project/joshuaelliott/ggcmi/utils
 
 for r in ray iizumi; do
    if [ $r = ray ]; then
+      indir=/project/joshuaelliott/ggcmi/reference
       yrs=1961-2008
    else
+      indir=/project/ggcmi/AgMIP.input/other.inputs/reference
       yrs=1982-2006
    fi
    for a in gadm0 fpu kg global; do

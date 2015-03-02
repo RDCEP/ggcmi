@@ -9,7 +9,7 @@ from re import findall
 from netCDF4 import Dataset as nc
 from optparse import OptionParser
 from filespecs import RescaledFile
-from os.path import basename, splitext
+from os.path import basename, splitext, isfile
 from numpy.ma import masked_array, masked_where
 from numpy import ones, zeros, where, isnan, cos, pi, resize, logical_and, intersect1d
 
@@ -55,7 +55,6 @@ with nc(wtfile) as f: # load weights
 with nc(mkfile) as f: # load mask
     aggmap = f.variables[agglvl][:]
 
-print agfile
 with nc(agfile) as f: # load aggregated file
     ain       = f.variables[agglvl][:]
     tin       = f.variables['time'][:]
@@ -119,8 +118,9 @@ with nc(irfile) as f:
 
     varr[:, :, :, 0] = var[logical_and(ftime >= time[0], ftime <= time[-1])]
 
-with nc(rffile) as f:
-    varr[:, :, :, 1] = f.variables[vname][logical_and(ftime >= time[0], ftime <= time[-1])]
+if isfile(rffile):
+    with nc(rffile) as f:
+        varr[:, :, :, 1] = f.variables[vname][logical_and(ftime >= time[0], ftime <= time[-1])]
 
 varr[isnan(varr)] = 0.
 

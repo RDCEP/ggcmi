@@ -60,7 +60,13 @@ with nc(infile) as fin: # pull input data
     tin_units = fin.variables['time'].units
     scen      = fin.variables['scen'].long_name.split(', ')
     sum_idx   = fin.variables['irr'].long_name.split(', ').index('sum')
-    yield_in  = fin.variables['yield_' + agglvl][:, :, :, sum_idx]
+
+    var = 'yield_' + agglvl
+    if var in fin.variables:
+        yield_in = fin.variables[var][:, :, :, sum_idx]
+    else:
+        print 'Yield variable not found in file %s. Exiting . . .' % infile
+        sys.exit()
 
 tref += int(findall(r'\d+', tref_units)[0])    # get reference time
 tin  += int(findall(r'\d+', tin_units)[0]) - 1 # get simulation time
