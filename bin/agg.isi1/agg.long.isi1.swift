@@ -1,7 +1,7 @@
 type file;
 
-app (file o) agglongisi1 (string model, string gcm, string crop, string co2, string rcp) {
-   agglongisi1 model gcm crop co2 rcp stdout = @o;
+app (file o) agglongisi1 (string model, string gcm, string crop, string co2, string rcp, string var) {
+   agglongisi1 model gcm crop co2 rcp var stdout = @o;
 }
 
 string models[] = strsplit(arg("models"), ",");
@@ -9,14 +9,17 @@ string gcms[]   = strsplit(arg("gcms"), ",");
 string crops[]  = strsplit(arg("crops"), ",");
 string co2s[]   = strsplit(arg("co2s"), ",");
 string rcps[]   = strsplit(arg("rcps"), ",");
+string vars[]   = strsplit(arg("vars"), ",");
 
 foreach m in models {
    foreach g in gcms {
       foreach c in crops {
          foreach co in co2s {
             foreach r in rcps {
-               file logfile <single_file_mapper; file = strcat("logs/", m, ".", g, ".", c, ".", co, ".", r, ".txt")>;
-               logfile = agglongisi1(m, g, c, co, r);
+               foreach v in vars {
+                  file logfile <single_file_mapper; file = strcat("logs/", m, ".", g, ".", c, ".", co, ".", r, ".", v, ".txt")>;
+                  logfile = agglongisi1(m, g, c, co, r, v);
+               }
             }
          }
       }
