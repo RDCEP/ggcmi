@@ -31,7 +31,7 @@ class VarRatio(Metrics):
         sim_mean = sim.mean()
         obs_std  = obs.std()
         if sim_mean * obs_std: # no zeros
-            return (sim.std() * obs.mean() / sim_mean * obs_std)
+            return (sim.std() * obs.mean()) / (sim_mean * obs_std)
         else:
             return masked
 
