@@ -43,13 +43,24 @@ if [ $mod = pDSSAT ]; then
         timef=$(seq -s, 55 148)
     fi
 elif [ $mod = GEPIC ] || [ $mod = LPJ-GUESS ] || [ $mod = LPJmL ] || [ $mod = PEGASUS ] || [ $mod = IMAGE_LEITAP ]; then
-    syear=1971
-    if [ $g = HadGEM2-ES ]; then
-        timeh=$(seq -s, 0 33)
-        timef=$(seq -s, 34 128)
+    if [ $mod = LPJmL ] && [ $var = yield ]; then # yield extends to 1951 for LPJmL
+        syear=1951
+        if [ $g = HadGEM2-ES ]; then
+            timeh=$(seq -s, 0 53)
+            timef=$(seq -s, 54 148)
+        else
+            timeh=$(seq -s, 0 54)
+            timef=$(seq -s, 55 148)
+        fi
     else
-        timeh=$(seq -s, 0 34)
-        timef=$(seq -s, 35 128)
+        syear=1971
+        if [ $g = HadGEM2-ES ]; then
+            timeh=$(seq -s, 0 33)
+            timef=$(seq -s, 34 128)
+        else
+            timeh=$(seq -s, 0 34)
+            timef=$(seq -s, 35 128)
+        fi
     fi
 elif [ $mod = EPIC ]; then
     syear=1980
