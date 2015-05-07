@@ -11,17 +11,16 @@ rm(list=ls(all=TRUE))
 
 # intermediate version
 # TODO
-# * use latest processed folder with 
-# ** additional models in it: CGMS-WOFOST, EPIC-TAMU, PEPIC, ORCHIDEE, ORCHIDEE-crop
-# ** updated simulations from EPIC-BOKU, PEGASUS 
 # * adjust functions for reading national level data for new nc file structure
 # * adjust functions for reading detrended reference data for new nc file structure 
 # * check other issues
+# * do pixel-based assessment for individual countries
 
 #path <- "/iplex/01/2011/isimip-lpj/yields/GGCMI2_outputs/WFDEI_GPCC_default/ncdf/"
 path <- "D:/data/GGCMI/"
 path.ref <- "D:/Dropbox/GGCMI/"
 path.ref.detrend <- "D:/data/GGCMI/ray-dt/"
+processed.ts <- "processed.150505"
 
 # read FPU names
 fpu.names <- read.csv("D:/data/GGCMI/fpu.meta.csv",header=F)[,2]
@@ -30,7 +29,7 @@ gadm0.index <- read.csv("D:/data/GGCMI/gadm0.meta.csv",header=F)[,1]
 name <- read.csv("D:/data/GGCMI/gadm0.meta.csv",header=F)[,2]
 
 
-source("D:/R_scripts/GGCMI_taylor_function.R")
+source("D:/github/ggcmi/bin/taylor.plotter/GGCMI_taylor_function.R")
 
 get_nc4_data_slice <- function(fname,crd=cr0,dtd=dt0,mpd=mp0,scend=scen0){
   nf <- nc_open(fname)
@@ -45,7 +44,12 @@ get_nc4_data_slice <- function(fname,crd=cr0,dtd=dt0,mpd=mp0,scend=scen0){
     return(NA)
   }
   # order is cr, mp, dt, scen, time, fpu
-  data.bc <- ncvar_get(nf,varid="yield_detrend")[cr,mp,dt,scen,,]
+  # test if scen dimension is > 1, otherwise object has one dimension less
+  if(length(strsplit(ncatt_get(nf,varid="scen")$long_name,split=", ")[[1]])>1) {
+    data.bc <- ncvar_get(nf,varid="yield_detrend")[cr,mp,dt,scen,,]
+  } else {
+    data.bc <- ncvar_get(nf,varid="yield_detrend")[cr,mp,dt,,]
+  }
   nc_close(nf)
   data.bc
 }
@@ -81,10 +85,20 @@ iizumif <- 1982
 iizumil <- 2005 #2006
 faof <- 1961
 faol <- 2012
+# specify which crop mask to use for aggregation for comparison with FPU.Iizumi, FPU.Ray, FAO
+agg.fao <- "dynamic_ray_mask"
+agg.fao <- "fixed_mirca_mask"
+agg.iizumi <- "fixed_iizumi_mask"
+agg.ray <- "dynamic_ray_mask"
+agg.ray <- "fixed_mirca_mask"
+agg.iizumi <- "fixed_mirca_mask"
 
 
 # loop through some other models 
-ggcms <- c("pdssat","epic-boku","epic-iiasa","gepic","papsim","pegasus","lpj-guess","lpjml")
+ggcms <- c("pdssat","epic-boku","epic-iiasa","gepic",
+           "papsim","pegasus","lpj-guess","lpjml",
+           "cgms-wofost","clm-crop","epic-tamu","orchidee-crop",
+           "pepic","prysbi2")
 # loop through crops
 crops <- c("mai","whe","ric","soy")
 cropsi <- c("maize_major","wheat","rice_major","soybean")
@@ -116,6 +130,7 @@ do.gadm0 <- T
 do.fpu <- T
 do.raw <- T
 do.norm <- T
+do.png <- T
 ignore.y <- 1
 pcor <- F
 
@@ -142,7 +157,8 @@ if(do.fpu){
     clim.season.r <- c((clim.season.r[1+ignore.y]):(clim.season.r[length(clim.season.r)-ignore.y]))
     clim.season.i <- c((clim.season.i[1+ignore.y]):(clim.season.i[length(clim.season.i)-ignore.y]))
     
-    for(cc in crops){
+    #for(cc in crops){
+    for(cc in "mai"){
       fname <- "D:/data/GGCMI/reference/ray/ray.1961-2008.fpu.dynamic.nc4"
       r.ray <- get_nc4_ref_slice(fname,cc)
       fname <- "D:/data/GGCMI/reference/iizumi/iizumi.1982-2006.fpu.dynamic.nc4"
@@ -194,7 +210,7 @@ if(do.fpu){
         
       }
       # read area per FPU
-      nf <- nc_open(paste("D:/data/GGCMI/processed.150129/masks/weight/aggs/",tolower(cropsl[which(crops==cc)]),".fpu.nc4",sep=""))
+      nf <- nc_open(paste("D:/data/GGCMI/",processed.ts,"/masks/weight/aggs/",tolower(cropsl[which(crops==cc)]),".fpu.nc4",sep=""))
       area_per_fpu_rf <- ncvar_get(nf,varid="rainfed_fpu")
       area_per_fpu_ir <- ncvar_get(nf,varid="irrigated_fpu")
       nc_close(nf)
@@ -202,7 +218,11 @@ if(do.fpu){
       ww.i <- matrix(rep(cbind(area_per_fpu_rf+area_per_fpu_ir),length(clim.season.i)),nrow=length(clim.season.i),byrow=T)
       while(length(dev.list())>0) dev.off() # make sure not figures are open to allow for 2 simultaneous figures
       for(topp in topps){
-        png(paste(path,"taylor/",cc,".taylor.",topp,".fpu.",clim[cl],".",prefix,Sys.Date(),".png",sep=""),height=5*300,width=5*300,res=300,pointsize=9)
+        if(do.png){
+          png(paste(path,"taylor/",cc,".taylor.",topp,".fpu.",clim[cl],".",prefix,".","r_vs_",agg.ray,".i_vs_",agg.iizumi,".",Sys.Date(),".png",sep=""),height=5*300,width=5*300,res=300,pointsize=9)
+        } else{
+          postscript(paste(path,"taylor/",cc,".taylor.",topp,".fpu.",clim[cl],".",prefix,".","r_vs_",agg.ray,".i_vs_",agg.iizumi,".",Sys.Date(),".eps",sep=""),height=5*100,width=5*100,pointsize=22,family="NimbusSan")
+        }
         par(xpd=NA)
         if(topp=="global"){
           fpus <- c(1:309)
@@ -219,28 +239,28 @@ if(do.fpu){
                                as.vector(ww.r[1:(lyear.plot-fyear.plot+1),fpus]),
                                ref.sd=T,
                                show.gamma=F,normalize=do.norm,col="grey60",pos.cor=pcor,#pos.cor=if(topp=="global") T else F,
-                               main=paste(topp,clim[cl],cropsl[which(crops==cc)],"\n",prefix))
+                               main=if(do.png) paste(topp,clim[cl],cropsl[which(crops==cc)],"\n",prefix) else "")
         
         # loop through models and add points to taylor diagram
         for(gg in ggcms){
           cat(gg,": ",sep="")
           if(!((cc=="ric" & gg=="papsim")|(cc=="ric" & gg=="pegasus"))){ #no rice for papsim and pegasus
-            data.default.r <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/fpu/ray/ray/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.default.r <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/fpu/ray/",agg.ray,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                              if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                  scend="default")
-            data.fullharm.r <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/fpu/ray/ray/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.fullharm.r <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/fpu/ray/",agg.ray,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                               if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                   scend="fullharm")
-            data.harmnon.r <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/fpu/ray/ray/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.harmnon.r <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/fpu/ray/",agg.ray,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                              if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                  scend="harmnon")
-            data.default.i <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/fpu/iizumi/iizumi/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.default.i <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/fpu/iizumi/",agg.iizumi,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                              if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                  scend="default")
-            data.fullharm.i <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/fpu/iizumi/iizumi/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.fullharm.i <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/fpu/iizumi/",agg.iizumi,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                               if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                   scend="fullharm")
-            data.harmnon.i <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/fpu/iizumi/iizumi/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.harmnon.i <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/fpu/iizumi/",agg.iizumi,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                              if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                  scend="harmnon")
             if(length(data.default.r)>1) {dd.r <- data.default.r[clim.season.r,fpus]} else dd.r<- NA
@@ -257,81 +277,85 @@ if(do.fpu){
               sim.vec.df <- as.vector(df.i)
               sim.vec.dh <- as.vector(dh.i)
               ww.vec <- as.vector(ww.i[,fpus])
-              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".jointly.iizumi.",clim[cl],".",prefix,Sys.Date(),".png",sep=""),height=3*300,width=5*300,res=300,pointsize=9)
-              par(cex=0.6)
-              prange <- range(ref.vec,sim.vec.dd,sim.vec.dh,sim.vec.df,na.rm=T)
-              plot(ref.vec,ylim=prange,type="o",cex=0.6,xlab="",ylab="")
-              text(x=seq(1,by=length(iizumi.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.1,labels=fpu.names[fpus],
-                   adj=0,cex=0.6,srt=20,xpd=NA)
-              text(x=seq(1,by=length(iizumi.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.075,labels=paste("weight: ",round(ww.i[1,fpus])),
-                   adj=0,cex=0.6,srt=20,xpd=NA)
-              text(x=seq(1,by=length(iizumi.season),
-                         length.out=length(fpus)),
-                   y=prange[2]+(prange[2]-prange[1])*.05,
-                   labels=paste("cor: ",
-                                c(round(cor(r.iizumi[iizumi.season,fpus[1]],dd.i[,1]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[2]],dd.i[,2]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[3]],dd.i[,3]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[4]],dd.i[,4]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[5]],dd.i[,5]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[6]],dd.i[,6]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[7]],dd.i[,7]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[8]],dd.i[,8]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[9]],dd.i[,9]),3),
-                                  round(cor(r.iizumi[iizumi.season,fpus[10]],dd.i[,10]),3))),
-                   adj=0,cex=0.6,srt=20,xpd=NA)
-              lines(sim.vec.dd,type="o",cex=0.6,lwd=0.5,col="green")
-              lines(sim.vec.df,type="o",cex=0.6,lwd=0.5,col="orange")
-              lines(sim.vec.dh,type="o",cex=0.6,lwd=0.5,col="yellow2")
-              legend("topleft",legend=c("Iizumi",paste("default r: ",
-                                                       round(cor(ref.vec,sim.vec.dd,"pairwise"),3)," weighted: ",round(wtd.cor(ref.vec,sim.vec.dd,ww.vec)[1],3)),
-                                        paste("fullharm r: ",
-                                              if(length(which(!is.na(sim.vec.df)))>0) round(cor(ref.vec,sim.vec.df,"pairwise"),3),
-                                              " weighted: ",if(length(which(!is.na(sim.vec.df)))>0) round(wtd.cor(ref.vec,sim.vec.df,ww.vec)[1],3)),
-                                        paste("harmnon r: ",if(length(which(!is.na(sim.vec.dh)))>0) round(cor(ref.vec,sim.vec.dh,"pairwise"),3),
-                                              " weighted: ",if(length(which(!is.na(sim.vec.dh)))>0) round(wtd.cor(ref.vec,sim.vec.dh,ww.vec)[1],3))),
-                     col=c(1,"green","orange","yellow2"),lty=1,bty="n")
-              dev.off()
-              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".jointly.ray.",clim[cl],".",prefix,Sys.Date(),".png",sep=""),height=3*300,width=5*300,res=300,pointsize=9)
-              par(cex=0.6)
-              ref.vec <- as.vector(r.ray[ray.season,fpus])
-              sim.vec.dd <- as.vector(dd.r)
-              sim.vec.df <- as.vector(df.r)
-              sim.vec.dh <- as.vector(dh.r)
-              prange <- range(ref.vec,sim.vec.dd,sim.vec.dh,sim.vec.df,na.rm=T)
-              plot(ref.vec,ylim=prange,type="o",cex=0.6,xlab="",ylab="")
-              text(x=seq(1,by=length(ray.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.1,labels=fpu.names[fpus],
-                   adj=0,cex=0.6,srt=20,xpd=NA)
-              text(x=seq(1,by=length(ray.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.075,labels=paste("weight: ",round(ww.i[1,fpus])),
-                   adj=0,cex=0.6,srt=20,xpd=NA)
-              text(x=seq(1,by=length(ray.season),
-                         length.out=length(fpus)),
-                   y=prange[2]+(prange[2]-prange[1])*.05,
-                   labels=paste("cor: ",
-                                c(round(cor(r.ray[ray.season,fpus[1]],dd.r[,1]),3),
-                                  round(cor(r.ray[ray.season,fpus[2]],dd.r[,2]),3),
-                                  round(cor(r.ray[ray.season,fpus[3]],dd.r[,3]),3),
-                                  round(cor(r.ray[ray.season,fpus[4]],dd.r[,4]),3),
-                                  round(cor(r.ray[ray.season,fpus[5]],dd.r[,5]),3),
-                                  round(cor(r.ray[ray.season,fpus[6]],dd.r[,6]),3),
-                                  round(cor(r.ray[ray.season,fpus[7]],dd.r[,7]),3),
-                                  round(cor(r.ray[ray.season,fpus[8]],dd.r[,8]),3),
-                                  round(cor(r.ray[ray.season,fpus[9]],dd.r[,9]),3),
-                                  round(cor(r.ray[ray.season,fpus[10]],dd.r[,10]),3))),
-                   adj=0,cex=0.6,srt=20,xpd=NA)
-              lines(sim.vec.dd,type="o",cex=0.6,lwd=0.5,col="green")
-              lines(sim.vec.df,type="o",cex=0.6,lwd=0.5,col="orange")
-              lines(sim.vec.dh,type="o",cex=0.6,lwd=0.5,col="yellow2")
-              legend("topleft",legend=c("ray",paste("default r: ",
-                                                       round(cor(ref.vec,sim.vec.dd,"pairwise"),3)," weighted: ",round(wtd.cor(ref.vec,sim.vec.dd,ww.vec)[1],3)),
-                                        paste("fullharm r: ",
-                                              if(length(which(!is.na(sim.vec.df)))>0) round(cor(ref.vec,sim.vec.df,"pairwise"),3),
-                                              " weighted: ",if(length(which(!is.na(sim.vec.df)))>0) round(wtd.cor(ref.vec,sim.vec.df,ww.vec)[1],3)),
-                                        paste("harmnon r: ",if(length(which(!is.na(sim.vec.dh)))>0) round(cor(ref.vec,sim.vec.dh,"pairwise"),3),
-                                              " weighted: ",if(length(which(!is.na(sim.vec.dh)))>0) round(wtd.cor(ref.vec,sim.vec.dh,ww.vec)[1],3))),
-                     col=c(1,"green","orange","yellow2"),lty=1,bty="n")
-              dev.off()
-              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".fpu.",clim[cl],".",prefix,Sys.Date(),".png",sep=""),height=10*300,width=5*300,res=300,pointsize=9)
+              if(length(dim(dd.i))>0){
+                png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".jointly.iizumi.",clim[cl],".",prefix,".","r_vs_",agg.ray,"i_vs_",agg.iizumi,".",Sys.Date(),".png",sep=""),height=3*300,width=5*300,res=300,pointsize=9)
+                par(cex=0.6)
+                prange <- range(ref.vec,sim.vec.dd,sim.vec.dh,sim.vec.df,na.rm=T)
+                plot(ref.vec,ylim=prange,type="o",cex=0.6,xlab="",ylab="")
+                text(x=seq(1,by=length(iizumi.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.1,labels=fpu.names[fpus],
+                     adj=0,cex=0.6,srt=20,xpd=NA)
+                text(x=seq(1,by=length(iizumi.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.075,labels=paste("weight: ",round(ww.i[1,fpus])),
+                     adj=0,cex=0.6,srt=20,xpd=NA)
+                text(x=seq(1,by=length(iizumi.season),
+                           length.out=length(fpus)),
+                     y=prange[2]+(prange[2]-prange[1])*.05,
+                     labels=paste("cor: ",
+                                  c(round(cor(r.iizumi[iizumi.season,fpus[1]],dd.i[,1]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[2]],dd.i[,2]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[3]],dd.i[,3]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[4]],dd.i[,4]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[5]],dd.i[,5]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[6]],dd.i[,6]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[7]],dd.i[,7]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[8]],dd.i[,8]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[9]],dd.i[,9]),3),
+                                    round(cor(r.iizumi[iizumi.season,fpus[10]],dd.i[,10]),3))),
+                     adj=0,cex=0.6,srt=20,xpd=NA)
+                lines(sim.vec.dd,type="o",cex=0.6,lwd=0.5,col="green")
+                lines(sim.vec.df,type="o",cex=0.6,lwd=0.5,col="orange")
+                lines(sim.vec.dh,type="o",cex=0.6,lwd=0.5,col="yellow2")
+                legend("topleft",legend=c("Iizumi",paste("default r: ",
+                                                         round(cor(ref.vec,sim.vec.dd,"pairwise"),3)," weighted: ",round(wtd.cor(ref.vec,sim.vec.dd,ww.vec)[1],3)),
+                                          paste("fullharm r: ",
+                                                if(length(which(!is.na(sim.vec.df)))>0) round(cor(ref.vec,sim.vec.df,"pairwise"),3),
+                                                " weighted: ",if(length(which(!is.na(sim.vec.df)))>0) round(wtd.cor(ref.vec,sim.vec.df,ww.vec)[1],3)),
+                                          paste("harmnon r: ",if(length(which(!is.na(sim.vec.dh)))>0) round(cor(ref.vec,sim.vec.dh,"pairwise"),3),
+                                                " weighted: ",if(length(which(!is.na(sim.vec.dh)))>0) round(wtd.cor(ref.vec,sim.vec.dh,ww.vec)[1],3))),
+                       col=c(1,"green","orange","yellow2"),lty=1,bty="n")
+                dev.off()                
+              }
+              if(length(dim(dd.r))>0){
+                png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".jointly.ray.",clim[cl],".",prefix,".","r_vs_",agg.ray,".i_vs_",agg.iizumi,".",Sys.Date(),".png",sep=""),height=3*300,width=5*300,res=300,pointsize=9)
+                par(cex=0.6)
+                ref.vec <- as.vector(r.ray[ray.season,fpus])
+                sim.vec.dd <- as.vector(dd.r)
+                sim.vec.df <- as.vector(df.r)
+                sim.vec.dh <- as.vector(dh.r)
+                prange <- range(ref.vec,sim.vec.dd,sim.vec.dh,sim.vec.df,na.rm=T)
+                plot(ref.vec,ylim=prange,type="o",cex=0.6,xlab="",ylab="")
+                text(x=seq(1,by=length(ray.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.1,labels=fpu.names[fpus],
+                     adj=0,cex=0.6,srt=20,xpd=NA)
+                text(x=seq(1,by=length(ray.season),length.out=length(fpus)),y=prange[2]+(prange[2]-prange[1])*.075,labels=paste("weight: ",round(ww.i[1,fpus])),
+                     adj=0,cex=0.6,srt=20,xpd=NA)
+                text(x=seq(1,by=length(ray.season),
+                           length.out=length(fpus)),
+                     y=prange[2]+(prange[2]-prange[1])*.05,
+                     labels=paste("cor: ",
+                                  c(round(cor(r.ray[ray.season,fpus[1]],dd.r[,1]),3),
+                                    round(cor(r.ray[ray.season,fpus[2]],dd.r[,2]),3),
+                                    round(cor(r.ray[ray.season,fpus[3]],dd.r[,3]),3),
+                                    round(cor(r.ray[ray.season,fpus[4]],dd.r[,4]),3),
+                                    round(cor(r.ray[ray.season,fpus[5]],dd.r[,5]),3),
+                                    round(cor(r.ray[ray.season,fpus[6]],dd.r[,6]),3),
+                                    round(cor(r.ray[ray.season,fpus[7]],dd.r[,7]),3),
+                                    round(cor(r.ray[ray.season,fpus[8]],dd.r[,8]),3),
+                                    round(cor(r.ray[ray.season,fpus[9]],dd.r[,9]),3),
+                                    round(cor(r.ray[ray.season,fpus[10]],dd.r[,10]),3))),
+                     adj=0,cex=0.6,srt=20,xpd=NA)
+                lines(sim.vec.dd,type="o",cex=0.6,lwd=0.5,col="green")
+                lines(sim.vec.df,type="o",cex=0.6,lwd=0.5,col="orange")
+                lines(sim.vec.dh,type="o",cex=0.6,lwd=0.5,col="yellow2")
+                legend("topleft",legend=c("ray",paste("default r: ",
+                                                      round(cor(ref.vec,sim.vec.dd,"pairwise"),3)," weighted: ",round(wtd.cor(ref.vec,sim.vec.dd,ww.vec)[1],3)),
+                                          paste("fullharm r: ",
+                                                if(length(which(!is.na(sim.vec.df)))>0) round(cor(ref.vec,sim.vec.df,"pairwise"),3),
+                                                " weighted: ",if(length(which(!is.na(sim.vec.df)))>0) round(wtd.cor(ref.vec,sim.vec.df,ww.vec)[1],3)),
+                                          paste("harmnon r: ",if(length(which(!is.na(sim.vec.dh)))>0) round(cor(ref.vec,sim.vec.dh,"pairwise"),3),
+                                                " weighted: ",if(length(which(!is.na(sim.vec.dh)))>0) round(wtd.cor(ref.vec,sim.vec.dh,ww.vec)[1],3))),
+                       col=c(1,"green","orange","yellow2"),lty=1,bty="n")
+                dev.off()                
+              }
+              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".fpu.",clim[cl],".",prefix,".","r_vs_",agg.ray,".i_vs_",agg.iizumi,".",Sys.Date(),".png",sep=""),height=10*300,width=5*300,res=300,pointsize=9)
               split.screen(c(5,2))
               for(i in 1:length(fpus)){
                 screen(i)
@@ -384,10 +408,10 @@ if(do.fpu){
         }
         #       legend(pos* if(topp==topps[1]).9 else .8,pos* if(topp==topps[1]) 1.3 else 1.4 ,legend=c(ggcms,"Iizumi vs. Ray","default vs. Ray","fullharm vs. Ray","default vs. Iizumi", "fullharm vs. Iizumi","harmnon vs. Ray","harmnon vs. Iizumi"),
         #              pch=c(1:length(ggcms),16,16,16,16,16,16,16),col=c(rep(1,length(ggcms)),"grey60","red","blue","green","orange","magenta","yellow2"),bty="n",cex=0.7)
-        legend(-2.8,3.5 ,legend=c(ggcms,"Iizumi vs. Ray"),
-               pch=c(1:length(ggcms),16),col=c(rep(1,length(ggcms)),"grey60"),bty="n",cex=0.7,xjust=0)
-        legend(2.8,3.5 ,legend=c("default vs. Ray","fullharm vs. Ray","default vs. Iizumi", "fullharm vs. Iizumi","harmnon vs. Ray","harmnon vs. Iizumi"),
-               pch=c(16,16,16,16,16,16),col=c("red","blue","green","orange","magenta","yellow2"),
+        legend(-2.8,3.5 ,legend=c(ggcms),
+               pch=c(1:length(ggcms)),col=c(rep(1,length(ggcms))),bty="n",cex=0.7,xjust=0)
+        legend(2.8,3.5 ,legend=c("default vs. Ray","fullharm vs. Ray","default vs. Iizumi", "fullharm vs. Iizumi","harmnon vs. Ray","harmnon vs. Iizumi","Iizumi vs. Ray"),
+               pch=c(16,16,16,16,16,16,16),col=c("red","blue","green","orange","magenta","yellow2","grey60"),
                bty="n",cex=0.7,xjust=1)
         
         dev.off()
@@ -404,23 +428,25 @@ if(do.gadm0){
   # use biascorr/gadm0/faostat
   topps <- c("global","top10")
   for(cl in 1){
-    fao.season <- c(max(cfirst[cl],faof):min(clast[cl],faol)) - faof+1
-    clim.season.f <- c(max(faof,cfirst[cl]) :min(faol,clast[cl])) - cfirst[cl]+1  
+    fao.season <- if(agg.fao=="dynamic_ray_mask") c(max(rayf,cfirst[cl],faof):min(rayl,clast[cl],faol)) - faof+1 else c(max(cfirst[cl],faof):min(clast[cl],faol)) - faof+1
+    clim.season.f <- if(agg.fao=="dynamic_ray_mask") c(max(rayf,faof,cfirst[cl]) :min(rayl,faol,clast[cl])) - cfirst[cl]+1 else  c(max(faof,cfirst[cl]) :min(faol,clast[cl])) - cfirst[cl]+1  
     # remove first and last years
     fao.season <- c(fao.season[1+ignore.y]:fao.season[length(fao.season)-ignore.y])
     clim.season.f <- c((clim.season.f[1+ignore.y]):(clim.season.f[length(clim.season.f)-ignore.y]))
-    ray.season <- c(max(cfirst[cl],rayf):min(clast[cl],rayl)) - rayf+1
-    iizumi.season <- c(max(cfirst[cl],iizumif):min(clast[cl],iizumil)) - iizumif+1
-    clim.season.r <- c(max(rayf,cfirst[cl]) :min(rayl,clast[cl])) - cfirst[cl]+1  
-    clim.season.i <- c(max(iizumif,cfirst[cl]):min(iizumil,clast[cl])) - cfirst[cl]+1 
-    # remove first and last years
-    ray.season <- c(ray.season[1+ignore.y]:ray.season[length(ray.season)-ignore.y])
-    iizumi.season <- c((iizumi.season[1+ignore.y]):(iizumi.season[length(iizumi.season)-ignore.y]))
-    clim.season.r <- c((clim.season.r[1+ignore.y]):(clim.season.r[length(clim.season.r)-ignore.y]))
-    clim.season.i <- c((clim.season.i[1+ignore.y]):(clim.season.i[length(clim.season.i)-ignore.y]))
+    
+#     ray.season <- c(max(cfirst[cl],rayf):min(clast[cl],rayl)) - rayf+1
+#     iizumi.season <- c(max(cfirst[cl],iizumif):min(clast[cl],iizumil)) - iizumif+1
+#     clim.season.r <- c(max(rayf,cfirst[cl]) :min(rayl,clast[cl])) - cfirst[cl]+1  
+#     clim.season.i <- c(max(iizumif,cfirst[cl]):min(iizumil,clast[cl])) - cfirst[cl]+1 
+#     # remove first and last years
+#     ray.season <- c(ray.season[1+ignore.y]:ray.season[length(ray.season)-ignore.y])
+#     iizumi.season <- c((iizumi.season[1+ignore.y]):(iizumi.season[length(iizumi.season)-ignore.y]))
+#     clim.season.r <- c((clim.season.r[1+ignore.y]):(clim.season.r[length(clim.season.r)-ignore.y]))
+#     clim.season.i <- c((clim.season.i[1+ignore.y]):(clim.season.i[length(clim.season.i)-ignore.y]))
     
       
-    for(cc in crops){
+    #for(cc in crops){
+    for(cc in "mai"){
       fname <- "D:/data/GGCMI/reference/faostat/faostat.1961-2012.gadm0.nc4"
       # get valid gadm0 IDs
       nf <- nc_open(fname)
@@ -437,7 +463,7 @@ if(do.gadm0){
       gadm0.id.i <- ncvar_get(nf,varid="gadm0")
       nc_close(nf)
       # fu*k. different country selection in sim files
-      fname<-paste(path,"processed.150129/biascorr/gadm0/faostat/ray/","pdssat","_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+      fname<-paste(path,processed.ts,"/biascorr/gadm0/faostat/",agg.fao,"/","pdssat","_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                   clast[cl],".biascorr.nc4",sep="")
       nf <- nc_open(fname)
       gadm0.id2 <- ncvar_get(nf,varid="gadm0")
@@ -450,8 +476,8 @@ if(do.gadm0){
       r.ray <- get_nc4_ref_slice(fname,cc)[,which(gadm0.id.r %in% gadm0.id2)]
       fname <- "D:/data/GGCMI/reference/iizumi/iizumi.1982-2006.gadm0.iizumi.nc4"
       r.iizumi <- get_nc4_ref_slice(fname,cc)[,which(gadm0.id.i %in% gadm0.id2)]
-      fyear.plot <- max(cfirst[cl],rayf,iizumif)+ignore.y
-      lyear.plot <- min(clast[cl],rayl,iizumil)-ignore.y
+#       fyear.plot <- max(cfirst[cl],rayf,iizumif)+ignore.y
+#       lyear.plot <- min(clast[cl],rayl,iizumil)-ignore.y
 #       r.ray <- r.ray[,which(gadm0.id.r %in% gadm0.id2)]
 #       r.iizumi <- r.iizumi[,which(gadm0.id.i %in% gadm0.id2)]
 #       gadm0.id.r <- gadm0.id.r[which(gadm0.id.r %in% gadm0.id2)]
@@ -518,7 +544,11 @@ if(do.gadm0){
       #     nc_close(nf)
       while(length(dev.list())>0) dev.off() # make sure no figures are open to allow for 2 simultaneous figures
       for(topp in topps[1]){
-        png(paste(path,"taylor/",cc,".taylor.",topp,".gadm0.",clim[cl],".",prefix,Sys.Date(),".png",sep=""),height=5*300,width=5*300,res=300,pointsize=9)
+        if(do.png){
+          png(paste(path,"taylor/",cc,".taylor.",topp,".gadm0.",clim[cl],".",prefix,".",agg.fao,".",Sys.Date(),".png",sep=""),height=5*300,width=5*300,res=300,pointsize=9)
+        } else{
+          postscript(paste(path,"taylor/",cc,".taylor.",topp,".gadm0.",clim[cl],".",prefix,".",agg.fao,".",Sys.Date(),".eps",sep=""),height=5*100,width=5*100,pointsize=22,family="NimbusSan")
+        }
         par(xpd=NA)
         if(topp=="global"){
           gadm0s <- gadm0.id
@@ -533,19 +563,21 @@ if(do.gadm0){
         pos <- taylor.diagram2(as.vector(r.fao[c(fyear.plot:lyear.plot)-faof+1,gadm0s]),
                                as.vector(r.fao[c(fyear.plot:lyear.plot)-faof+1,gadm0s]),ref.sd=T,
                                show.gamma=F,normalize=do.norm,col="grey60",pos.cor=F,#pos.cor=if(topp=="global") T else F,
-                               main=paste(topp,clim[cl],cropsl[which(crops==cc)],"\n",prefix),type="n")
+                               main=paste(topp,clim[cl],cropsl[which(crops==cc)],"\n",prefix,"\n",agg.fao),type="n")
         
         # loop through models and add points to taylor diagram
         for(gg in ggcms){
           cat(gg,": ",sep="")
-          if(!((cc=="ric" & gg=="papsim")|(cc=="ric" & gg=="pegasus"))){ #no rice for papsim and pegasus
-            data.default.f <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/gadm0/faostat/ray/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+          if(!((cc=="ric" & gg=="papsim")|(cc=="ric" & gg=="pegasus")| #no rice for papsim and pegasus
+              ((cc=="ric" | cc=="soy") & gg=="epic-tamu")  # no rice or soy for epic tamu
+              )){
+            data.default.f <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/gadm0/faostat/",agg.fao,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                              if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                  scend="default")
-            data.fullharm.f <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/gadm0/faostat/ray/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.fullharm.f <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/gadm0/faostat/",agg.fao,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                               if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                   scend="fullharm")
-            data.harmnon.f <- get_nc4_data_slice(fname=paste(path,"processed.150129/biascorr/gadm0/faostat/ray/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
+            data.harmnon.f <- get_nc4_data_slice(fname=paste(path,processed.ts,"/biascorr/gadm0/faostat/",agg.fao,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                                                              if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep=""),
                                                  scend="harmnon")
             if(length(data.default.f)>1) {dd.f <- data.default.f[clim.season.f,gadm0s]} else dd.f<- NA
@@ -558,7 +590,7 @@ if(do.gadm0){
               sim.vec.dd <- as.vector(dd.f)
               sim.vec.df <- as.vector(df.f)
               sim.vec.dh <- as.vector(dh.f)
-              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".gadm0.jointly.",clim[cl],".",prefix,Sys.Date(),".png",sep=""),height=3*300,width=5*300,res=300,pointsize=9)
+              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".gadm0.jointly.",clim[cl],".",prefix,".",agg.fao,".",Sys.Date(),".png",sep=""),height=3*300,width=5*300,res=300,pointsize=9)
               par(cex=0.6)
               prange <- range(ref.vec,sim.vec.dd,sim.vec.dh,sim.vec.df,na.rm=T)
               plot(ref.vec,ylim=prange,type="o",cex=0.6,xlab="",ylab="")
@@ -572,7 +604,7 @@ if(do.gadm0){
                                         paste("harmnon r: ",if(length(which(!is.na(sim.vec.dh)))>0) round(cor(ref.vec,sim.vec.dh,"pairwise"),3))),
                      col=c(1,"green","orange","yellow2"),lty=1,bty="n")
               dev.off()
-              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".gadm0.",clim[cl],".",prefix,Sys.Date(),".png",sep=""),height=10*300,width=5*300,res=300,pointsize=9)
+              png(paste(path,"timeseries/",gg,"/",gg,".",cc,".timeseries.",topp,".gadm0.",clim[cl],".",prefix,".",agg.fao,".",Sys.Date(),".png",sep=""),height=10*300,width=5*300,res=300,pointsize=9)
               split.screen(c(5,2))
               for(i in 1:length(gadm0s)){
                 screen(i)
