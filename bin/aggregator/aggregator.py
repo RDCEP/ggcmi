@@ -4,6 +4,10 @@
 import os, sys
 for p in os.environ['PATH'].split(':'): sys.path.append(p)
 
+# ignore all warnings
+import warnings
+warnings.filterwarnings('ignore')
+
 # import modules
 from re import findall
 from os import listdir

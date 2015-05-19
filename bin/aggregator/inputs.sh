@@ -6,7 +6,7 @@ adir=/project/ggcmi/AgMIP.output/processed/masks/aggr
 gdir=/project/ggcmi/AgMIP.input/other.inputs/agmip_growing_season.1.23.processed
 odir=/project/ggcmi/AgMIP.output/processed/aggs
 
-mods=(pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku CGMS-WOFOST CLM-Crop EPIC-TAMU ORCHIDEE ORCHIDEE-crop PEPIC PRYSBI2)
+mods=(pDSSAT pAPSIM LPJ-GUESS LPJmL PEGASUS GEPIC EPIC-IIASA EPIC-Boku EPIC-test CGMS-WOFOST CLM-Crop EPIC-TAMU ORCHIDEE ORCHIDEE-crop PEPIC PRYSBI2)
 
 cropl=(maize wheat rice soy sorghum millet)
 crops=(mai whe ric soy sor mil)
