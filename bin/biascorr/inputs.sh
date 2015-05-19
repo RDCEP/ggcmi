@@ -18,7 +18,7 @@ for a in gadm0 fpu kg global; do
       else
          refdir=/project/ggcmi/AgMIP.input/other.inputs/reference
       fi
-      for area in fixed_mirca_mask dynamic_ray_mask fixed_iizumi_mask; do
+      for area in fixed_mirca_mask dynamic_ray_mask fixed_iizumi_mask fixed_spam_mask; do
          reffile=$refdir/$rs/$rl.$a.$area.nc4
          if [ ! -f $reffile ] || [ ! -d $indir/$a/$area ]; then
             continue

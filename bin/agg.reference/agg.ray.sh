@@ -22,7 +22,7 @@ cpfull=(maize rice soy wheat)
 amsks=(gadm0 fpu kg global)
 
 # weight masks to process
-wmsks=(mirca ray iizumi)
+wmsks=(spam) # (mirca ray iizumi)
 
 for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
    # aggregation mask name
@@ -33,7 +33,7 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
       wmsk=${wmsks[$j]}
 
       # filename
-      if [ $wmsk = mirca ] || [ $wmsk = iizumi ]; then
+      if [ $wmsk = mirca ] || [ $wmsk = iizumi ] || [ $wmsk = spam ]; then
          outfile=$outdir/ray.1961-2008.${amsk}.fixed_${wmsk}_mask.nc4
       else
          outfile=$outdir/ray.1961-2008.${amsk}.dynamic_${wmsk}_mask.nc4
@@ -53,9 +53,12 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
          elif [ $wmsk = ray ]; then
             wfile=${cf}.ray.nc4
             infile=${cs}_weight_ray_1961-2008.nc4
-         else
+         elif [ $wmsk = iizumi ]; then
             wfile=${cf}.iizumi.nc4
             infile=${cs}_weight_ray_1982-2006.nc4
+         else
+            wfile=${cf}.spam.nc4
+            infile=${cs}_weight_ray_1961-2008.nc4
          fi
 
          # aggregate

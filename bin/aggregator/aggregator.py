@@ -191,7 +191,7 @@ for i in range(len(scens_full)):
     # load yield file
     yieldfile = findfile(files, scen_irr, 'yield')
     if yieldfile == []:
-        yvar = masked_array(zeros(pd.shape), mask = zeros(pd.shape))
+        yvar = masked_array(zeros((nt,) + pd.shape), mask = zeros((nt,) + pd.shape))
     else:
         with nc(indir + sep + yieldfile) as f:
             yvar = f.variables['yield_' + crop][:]

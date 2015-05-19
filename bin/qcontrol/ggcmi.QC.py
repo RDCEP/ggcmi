@@ -10,9 +10,9 @@ from numpy import inf, float32, zeros, ones, where, diff, array_equal, logical_a
 
 def climate_years(clim_names):
     clim_names_list = ['PGFv2', 'AgCFSR', 'AgMERRA', 'CFSR', 'ERAI', 'GRASP', \
-                       'Princeton', 'WATCH', 'WFDEI.CRU', 'WFDEI.GPCC']
+                       'Princeton', 'WATCH', 'WFDEI.CRU', 'WFDEI.GPCC', 'GSWP3']
     year_range_list = [[1901, 2012], [1980, 2010], [1980, 2010], [1980, 2010], [1979, 2010], [1961, 2010], \
-                       [1948, 2008], [1958, 2001], [1979, 2009], [1979, 2009]]
+                       [1948, 2008], [1958, 2001], [1979, 2009], [1979, 2009], [1901, 2010]]
     yrs = [0] * len(clim_names)
     for i in range(len(clim_names)):
         if clim_names[i] in clim_names_list:

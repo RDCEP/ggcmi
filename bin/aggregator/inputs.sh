@@ -31,7 +31,7 @@ for m in ${mods[@]}; do
          gsfile=$gdir/${cs}_growing_season_dates.nc4
          for a in gadm0 fpu kg global; do
             afile=$adir/$a.mask.nc4
-            for area in mirca ray iizumi; do
+            for area in mirca ray iizumi spam; do
                if [ $area = mirca ]; then
                   wfile=$wdir/$cl.nc4
                else
@@ -40,7 +40,7 @@ for m in ${mods[@]}; do
                if [ ! -f $wfile ]; then
                   continue
                fi
-               if [ $area = mirca ] || [ $area = iizumi ]; then
+               if [ $area = mirca ] || [ $area = iizumi ] || [ $area = spam ]; then
                   outdir=$odir/$a/fixed_${area}_mask
                else
                   outdir=$odir/$a/dynamic_${area}_mask
