@@ -116,6 +116,9 @@ with nc(irfile) as f:
     units = var.units     if 'units'     in var.ncattrs() else ''
     lname = var.long_name if 'long_name' in var.ncattrs() else ''
 
+    if len(var) != len(ftime): # happens with epic-test
+        ftime = f.variables['time'][:] + int(findall(r'\d+', f.variables['time'].units)[0]) - 1
+
     varr[:, :, :, 0] = var[logical_and(ftime >= time[0], ftime <= time[-1])]
 
 if isfile(rffile):

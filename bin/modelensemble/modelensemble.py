@@ -38,7 +38,7 @@ metric     = options.metric
 outdir     = options.outdir
 
 files = listdir(indir)
-bcfiles = [f for f in files if fnmatch(f, '*_%s_*_%s_*' % (weather, crop))]
+bcfiles = [f for f in files if fnmatch(f, '*_%s_*_%s_*' % (weather, crop)) and not 'epic-test' in f] # exclude epic-test
 bcfiles = [indir + sep + f for f in bcfiles]
 
 files = listdir(metricsdir)
