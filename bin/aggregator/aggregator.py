@@ -84,9 +84,16 @@ if not len(files):
 
 # extract time and units from first filename
 y1, y2 = [int(y) for y in findall(r'\d+', splitext(files[0])[0])[-2 :]]
-time   = arange(1, y2 - y1 + 2)
 years  = arange(y1, y2 + 1)
 tunits = 'growing seasons since %d-01-01 00:00:00' % y1
+
+# check time against time in file
+with nc(indir + sep + files[0]) as f:
+    tvar = f.variables['time']
+    if len(tvar) != len(years):
+        tunits = tvar.units
+        years  = tvar[:] + int(findall(r'\d+', tunits)[0]) - 1
+        y1, y2 = years.min(), years.max()
 
 # load landuse mask
 with nc(lufile) as f:

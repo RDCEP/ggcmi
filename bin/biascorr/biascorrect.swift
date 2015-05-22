@@ -4,12 +4,12 @@ app (file o) get_inputs () {
    inputs stdout = @o;  
 }
 
-app biascorrect(string inputfile, string reffile, string agglvl, string outdir) {
-    biascorrect "-i" inputfile "-r" reffile "-a" agglvl "-o" outdir;
+app (file o) biascorrect(string inputfile, string reffile, string agglvl, string outdir) {
+    biascorrect "-i" inputfile "-r" reffile "-a" agglvl "-o" outdir stdout = @o;
 }
 
 type Inputs {
-    string indir;
+    string inputfile;
     string reffile;
     string agglvl;
     string outdir;
@@ -17,12 +17,9 @@ type Inputs {
 
 file ff <"finder.out">;
 ff = get_inputs();
-Inputs iro[] = readData(ff);
+Inputs irao[] = readData(ff);
 
-foreach i in iro {
-   file aggfiles[] <filesys_mapper; location = i.indir, pattern = "*">;
-   foreach f in aggfiles {
-      string fn[] = strsplit(@f, "file://localhost/");
-      biascorrect(fn[1], i.reffile, i.agglvl, i.outdir);
-   }
+foreach i, idx in irao {
+    file logfile <single_file_mapper; file = strcat("logs/log_", idx, ".txt")>;
+    logfile = biascorrect(i.inputfile, i.reffile, i.agglvl, i.outdir);
 }

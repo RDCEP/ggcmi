@@ -4,12 +4,12 @@ app (file o) get_inputs () {
    inputs stdout = @o;  
 }
 
-app multimetrics(string inputfile, string reffile, string agglvl, string outdir) {
-    multimetrics inputfile reffile agglvl outdir;
+app (file o) multimetrics(string inputfile, string reffile, string agglvl, string outdir) {
+    multimetrics inputfile reffile agglvl outdir stdout = @o;
 }
 
 type Inputs {
-    string indir;
+    string inputfile;
     string reffile;
     string agglvl;
     string outdir;
@@ -17,12 +17,9 @@ type Inputs {
 
 file ff <"finder.out">;
 ff = get_inputs();
-Inputs iro[] = readData(ff);
+Inputs irao[] = readData(ff);
 
-foreach i in iro {
-   file bcfiles[] <filesys_mapper; location = i.indir, pattern = "*">;
-   foreach f in bcfiles {
-      string fn[] = strsplit(@f, "file://localhost/");
-      multimetrics(fn[1], i.reffile, i.agglvl, i.outdir);
-   }
+foreach i, idx in irao {
+   file logfile <single_file_mapper; file = strcat("logs/log_", idx, ".txt")>;
+   logfile = multimetrics(i.inputfile, i.reffile, i.agglvl, i.outdir);
 }
