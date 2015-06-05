@@ -1,7 +1,7 @@
 taylor.diagram2 <- function (ref, model, weights=NULL,add = FALSE, col = "red", pch = 19, pos.cor = TRUE, 
                              xlab = "", ylab = "", main = "Taylor Diagram", show.gamma = TRUE, 
-                             ngamma = 3, gamma.col = 8, sd.arcs = 0, ref.sd = FALSE, grad.corr.lines = c(0.2, 
-                                                                                                         0.4, 0.6, 0.8, 0.9), pcex = 1, cex.axis = 1, normalize = FALSE, 
+                             ngamma = 3, gamma.col = 8, sd.arcs = 0, ref.sd = FALSE, 
+                             grad.corr.lines = c(0.2, 0.4, 0.6, 0.8, 0.9), pcex = 1, cex.axis = 1, normalize = FALSE, 
                              mar = c(5, 4, 6, 6), ...) 
 {
   require(weights)
@@ -9,7 +9,9 @@ taylor.diagram2 <- function (ref, model, weights=NULL,add = FALSE, col = "red", 
   grad.corr.full <- c(0, 0.2, 0.4, 0.6, 0.8, 0.9, 0.95, 0.99, 
                       1)
   #R <- cor(ref, model, use = "complete.obs") #using "complelte.obs" instead of "pairwise" to remove NAs
-  R <- wtd.cor(ref, model, weights)[1]
+  RR <- wtd.cor(ref, model, weights)
+  R <- RR[1]
+  Rp <- RR[4]
   if (is.list(ref)) 
     ref <- unlist(ref)
   if (is.list(model)) 
@@ -193,9 +195,17 @@ taylor.diagram2 <- function (ref, model, weights=NULL,add = FALSE, col = "red", 
       S <- (2 * (1 + R))/(sd.f + (1/sd.f))^2
     }
   }
-  points(sd.f * R, sd.f * sin(acos(R)), pch = pch, col = col, 
-         cex = pcex)
-  cat("correlation",R,"SD",sd.f,"\n")
+  if(Rp > 0.05){ # if p >0.05, plot very light version of dot
+    col2 <- col2rgb(col)
+    points(sd.f * R, sd.f * sin(acos(R)), pch = pch, 
+           col = rgb(col2[1,],col2[2,],col2[3,],30,maxColorValue=255), 
+           cex = pcex)    
+    cat("bad p value!",Rp,"\n")
+  } else {
+    points(sd.f * R, sd.f * sin(acos(R)), pch = pch, col = col, 
+           cex = pcex)    
+  }
+  cat("correlation",R,"SD",sd.f,"p",Rp,"\n")
   invisible(oldpar)
   # do not return old par but the max SD to locate the legend
   invisible(maxsd)
