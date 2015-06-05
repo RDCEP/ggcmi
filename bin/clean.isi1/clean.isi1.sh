@@ -25,7 +25,7 @@ r=$5
 rootdir=/project/ggcmi/isi1
 outdir=/project/ggcmi/isi1.clean
 
-epicfill=/project/ggcmi/isi1/epic.fill.2066_2068
+epicfill=/project/ggcmi/isi1/bin/epic.fill.2066_2068
 
 irrs=(firr noirr)
 
