@@ -24,7 +24,7 @@ r=$5
 var=$6
 
 rootdir=/project/ggcmi/isi1/raw
-outdir=/project/ggcmi/isi1/isi1.long.clean
+outdir=/project/ggcmi/isi1/processed/isi1.long.clean
 
 epicfill=/project/ggcmi/isi1/bin/epic.fill.2066_2068
 

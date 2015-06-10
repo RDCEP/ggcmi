@@ -21,9 +21,9 @@ g=$2
 cf=$3
 co=$4
 
-rcp26dir=/project/ggcmi/isi1/isi1.biascorr/$mod/$g/$cf/rcp2p6/$co
-rcp85dir=/project/ggcmi/isi1/isi1.biascorr/$mod/$g/$cf/rcp8p5/$co
-odir=/project/ggcmi/isi1/isi1.metrics/$mod/$g/$cf/$co
+rcp26dir=/project/ggcmi/isi1/processed/isi1.biascorr/$mod/$g/$cf/rcp2p6/$co
+rcp85dir=/project/ggcmi/isi1/processed/isi1.biascorr/$mod/$g/$cf/rcp8p5/$co
+odir=/project/ggcmi/isi1/processed/isi1.metrics/$mod/$g/$cf/$co
 
 cs=$(shortnames $cf)
 

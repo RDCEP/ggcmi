@@ -24,8 +24,8 @@ cf=$3
 co=$4
 r=$5
 
-idir=/project/ggcmi/isi1.clean/$mod/$g/$cf/$r/$co
-odir=/project/ggcmi/isi1.agg
+idir=/project/ggcmi/isi1/processed/isi1.clean/$mod/$g/$cf/$r/$co
+odir=/project/ggcmi/isi1/processed/isi1.agg
 
 wdir=/project/ggcmi/AgMIP.output/processed/masks/weight
 mfile=/project/ggcmi/AgMIP.output/processed/masks/aggr/fpu.global.mask.nc4

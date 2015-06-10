@@ -3,14 +3,14 @@
 plot=$1
 crop=$2
 
-mfile=/project/ggcmi/isi1/isi1.metrics.all/metrics.nc4
+mfile=/project/ggcmi/isi1/processed/isi1.metrics.all/metrics.nc4
 afile=/project/ggcmi/AgMIP.output/processed/masks/aggr/fpu.mask.nc4
 hffile=/project/ggcmi/AgMIP.output/processed/masks/weight/aggs/all.fpu.nc4
 hgfile=/project/ggcmi/AgMIP.output/processed/masks/weight/aggs/all.global.nc4
 sfile=/project/joshuaelliott/data/masks/fpu_shp_files/fpu_wgs84/fpu_polyg_wgs84_3_to_dieter
 
 wdir=/project/ggcmi/AgMIP.output/processed/masks/weight
-odir=/project/ggcmi/isi1/isi1.plots
+odir=/project/ggcmi/isi1/processed/isi1.plots
 
 if [ $plot = blmap ]; then
    /project/joshuaelliott/ggcmi/bin/plot.isi1/blmap.isi1.py -i $mfile                          \

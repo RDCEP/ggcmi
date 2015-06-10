@@ -24,8 +24,8 @@ cf=$3
 co=$4
 r=$5
 
-idir=/project/ggcmi/isi1/isi1.agg/$mod/$g/$cf/$r/$co
-odir=/project/ggcmi/isi1/isi1.biascorr/$mod/$g/$cf/$r/$co
+idir=/project/ggcmi/isi1/processed/isi1.agg/$mod/$g/$cf/$r/$co
+odir=/project/ggcmi/isi1/processed/isi1.biascorr/$mod/$g/$cf/$r/$co
 
 cs=$(shortnames $cf)
 if=$idir/${mod,,}_${g,,}_ssp2_${co}_yield_${cs}_annual_1980_2099.nc4

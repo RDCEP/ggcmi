@@ -22,8 +22,8 @@ cf=$3
 co=$4
 r=$5
 
-rootdir=/project/ggcmi/isi1
-outdir=/project/ggcmi/isi1.clean
+rootdir=/project/ggcmi/isi1/raw
+outdir=/project/ggcmi/isi1/processed/isi1.clean
 
 epicfill=/project/ggcmi/isi1/bin/epic.fill.2066_2068
 

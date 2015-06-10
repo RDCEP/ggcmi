@@ -37,7 +37,7 @@ class Averager(object):
         if weights is None: # weights
             weights = ones((nt, nlats, nlons))
         elif len(weights.shape) == 2:
-            weights = resize(weights, (nt, nlats, nlons))
+            weights = ma.resize(weights, (nt, nlats, nlons))
 
         if calcarea: # area
             area = self.area(lats, nlats, nlons)
@@ -96,7 +96,7 @@ class Averager(object):
         if weights is None: # weights
             weights = ones((nt, nlats, nlons))
         elif len(weights.shape) == 2:
-            weights = resize(weights, (nt, nlats, nlons))
+            weights = ma.resize(weights, (nt, nlats, nlons))
 
         if calcarea: # area
             area = self.area(lats, nlats, nlons)

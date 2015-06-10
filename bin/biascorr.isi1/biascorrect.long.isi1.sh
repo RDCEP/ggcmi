@@ -25,8 +25,8 @@ co=$4
 r=$5
 var=$6
 
-idir=/project/ggcmi/isi1/isi1.long.agg/$mod/$g/$cf/$r/$co
-odir=/project/ggcmi/isi1/isi1.long.biascorr/$mod/$g/$cf/$r/$co
+idir=/project/ggcmi/isi1/processed/isi1.long.agg/$mod/$g/$cf/$r/$co
+odir=/project/ggcmi/isi1/processed/isi1.long.biascorr/$mod/$g/$cf/$r/$co
 
 fpufile=/project/ggcmi/AgMIP.input/other.inputs/reference/iizumi/iizumi.1982-2006.fpu.fixed_iizumi_mask.nc4
 gadmfile=/project/ggcmi/AgMIP.input/other.inputs/reference/iizumi/iizumi.1982-2006.gadm0.fixed_iizumi_mask.nc4

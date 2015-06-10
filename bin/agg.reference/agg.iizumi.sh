@@ -7,6 +7,7 @@ refdir=/project/joshuaelliott/ggcmi/reference/iizumi/30min
 
 # directory to weight files
 wtsdir=/project/ggcmi/AgMIP.output/processed/masks/weight
+wtsdirray=/project/joshuaelliott/ggcmi/reference/ray/masks
 
 # directory to aggregation files
 mskdir=/project/ggcmi/AgMIP.output/processed/masks/aggr
@@ -52,13 +53,13 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
 
          # weight mask file
          if [ $wmsk = mirca ]; then
-            wfile=${cf}.nc4
+            wfile=$wtsdir/${cf}.nc4
          elif [ $wmsk = iizumi ]; then
-            wfile=${cf}.iizumi.nc4
+            wfile=$wtsdir/${cf}.iizumi.nc4
          elif [ $wmsk = ray ]; then
-            wfile=${cf}.ray.1982-2006.nc4
+            wfile=$wtsdirray/${cf}.ray.1982-2006.nc4
          else
-            wfile=${cf}.spam.nc4
+            wfile=$wtsdir/${cf}.spam.nc4
          fi
 
          # aggregate
@@ -66,7 +67,7 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
          ./agg.single.py -i $refdir/iizumi.2013JAN29.${cr}.1982-2006.30min.nc4:yield50 \
                          -a $mskdir/${amsk}.mask.nc4:$amsk                             \
                          -t mean                                                       \
-                         -w $wtsdir/$wfile:sum                                         \
+                         -w $wfile:sum                                                 \
                          -o temp.nc4
 
          # clean data

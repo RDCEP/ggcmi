@@ -99,8 +99,12 @@ with nc(indir + sep + files[0]) as f:
 with nc(lufile) as f:
     lats, lons = f.variables['lat'][:], f.variables['lon'][:]
 
-    weights = f.variables['irrigated'][:][newaxis]
-    weights = append(weights, f.variables['rainfed'][:][newaxis], axis = 0)
+    wir = f.variables['irrigated'][:]
+    wrf = f.variables['rainfed'][:]
+
+    weights    = masked_array(zeros((2,) + wir.shape), mask = ones((2,) + wir.shape))
+    weights[0] = wir
+    weights[1] = wrf
 
     if 'time' in f.variables:
         ltime   = f.variables['time'][:]

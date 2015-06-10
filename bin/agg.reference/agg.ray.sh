@@ -7,6 +7,7 @@ refdir=/project/joshuaelliott/ggcmi/reference/ray/weighted
 
 # directory to weight files
 wtsdir=/project/ggcmi/AgMIP.output/processed/masks/weight
+wtsdirray=/project/joshuaelliott/ggcmi/reference/ray/masks
 
 # directory to aggregation files
 mskdir=/project/ggcmi/AgMIP.output/processed/masks/aggr
@@ -22,7 +23,7 @@ cpfull=(maize rice soy wheat)
 amsks=(gadm0 fpu kg global)
 
 # weight masks to process
-wmsks=(spam) # (mirca ray iizumi)
+wmsks=(mirca ray iizumi spam)
 
 for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
    # aggregation mask name
@@ -48,16 +49,16 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
 
          # weight mask file
          if [ $wmsk = mirca ]; then
-            wfile=${cf}.nc4
+            wfile=$wtsdir/${cf}.nc4
             infile=${cs}_weight_ray_1961-2008.nc4
          elif [ $wmsk = ray ]; then
-            wfile=${cf}.ray.nc4
+            wfile=$wtsdirray/${cf}.ray.nc4
             infile=${cs}_weight_ray_1961-2008.nc4
          elif [ $wmsk = iizumi ]; then
-            wfile=${cf}.iizumi.nc4
+            wfile=$wtsdir/${cf}.iizumi.nc4
             infile=${cs}_weight_ray_1982-2006.nc4
          else
-            wfile=${cf}.spam.nc4
+            wfile=$wtsdir/${cf}.spam.nc4
             infile=${cs}_weight_ray_1961-2008.nc4
          fi
 
@@ -66,7 +67,7 @@ for ((i = 0; i < ${#amsks[@]}; i++)); do # aggregation masks
          ./agg.single.py -i $refdir/$infile:yield_${cs}    \
                          -a $mskdir/${amsk}.mask.nc4:$amsk \
                          -t mean                           \
-                         -w $wtsdir/$wfile:sum             \
+                         -w $wfile:sum                     \
                          -o temp.nc4
 
          # clean data
