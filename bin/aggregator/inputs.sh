@@ -2,6 +2,7 @@
 
 idir=/project/ggcmi/AgMIP.output
 wdir=/project/ggcmi/AgMIP.output/processed/masks/weight
+wdirray=/project/joshuaelliott/ggcmi/reference/ray/masks
 adir=/project/ggcmi/AgMIP.output/processed/masks/aggr
 gdir=/project/ggcmi/AgMIP.input/other.inputs/agmip_growing_season.1.23.processed
 odir=/project/ggcmi/AgMIP.output/processed/aggs
@@ -34,6 +35,8 @@ for m in ${mods[@]}; do
             for area in mirca ray iizumi spam; do
                if [ $area = mirca ]; then
                   wfile=$wdir/$cl.nc4
+               elif [ $area = ray ]; then
+                  wfile=$wdirray/$cl.$area.nc4
                else
                   wfile=$wdir/$cl.$area.nc4
                fi
