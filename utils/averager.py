@@ -21,13 +21,11 @@ class Averager(object):
         area1[logical_and(area1.mask, ~area2.mask)] = 0.
         area2[logical_and(area2.mask, ~area1.mask)] = 0.
 
-        totarea = area1 + area2
-        totarea = ma.masked_where(totarea == 0, totarea)
-
         sz = len(av1)
         totav = ma.masked_array(zeros((sz, nt, 3)), mask = ones((sz, nt, 3)))
-        totav[:, :, 0], totav[:, :, 1] = av1, av2
-        totav[:, :, 2] = (area1 * av1 + area2 * av2) / totarea
+        totav[:, :, 0] = av1
+        totav[:, :, 1] = av2
+        totav[:, :, 2] = self.combineVar(av1, av2, area1, area2)
 
         return totav
 
@@ -139,8 +137,16 @@ class SumAverager(Averager):
     def av(self, var, agg, lats, weights = None, calcarea = False, mask = None, numchunks = 1):
         return self.sum(var, agg, lats, weights, calcarea, mask, numchunks)
 
+    def combineVar(self, var1, var2, area1, area2):
+        return var1 + var2
+
 class MeanAverager(Averager):
     def av(self, var, agg, lats, weights = None, calcarea = False, mask = None, numchunks = 1):
         avv   = self.sum(var, agg, lats, weights, calcarea, mask, numchunks)
         areas = self.areas(var, agg, lats, weights, calcarea, mask)
         return avv / areas
+
+    def combineVar(self, var1, var2, area1, area2):
+        totarea = area1 + area2
+        totarea = ma.masked_where(totarea == 0, totarea)
+        return (area1 * var1 + area2 * var2) / totarea
