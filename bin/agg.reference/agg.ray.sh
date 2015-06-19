@@ -13,7 +13,7 @@ wtsdirray=/project/joshuaelliott/ggcmi/reference/ray/masks
 mskdir=/project/ggcmi/AgMIP.output/processed/masks/aggr
 
 # directory to save output
-outdir=/project/joshuaelliott/ggcmi/reference/ray/aggs
+outdir=/project/ggcmi/AgMIP.input/other.inputs/reference/ray/aggs
 
 # crops to process
 cpshort=(mai ric soy whe)
