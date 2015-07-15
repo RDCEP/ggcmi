@@ -55,13 +55,13 @@ extract.T.data <- function(fn,ind,rcp){ # filename, mask
 ggcms <- c("EPIC","GEPIC","IMAGE_LEITAP","LPJ-GUESS","LPJmL","pDSSAT","PEGASUS")
 gcms <- "HadGEM2-ES"
 rcps <- c("rcp2p6","rcp4p5","rcp6p0","rcp8p5")[c(1,4)] # currently only rcp2p6 and rcp8p5 are available in the cleaned version
-irrig <- c("noirr","firr")
+irrig <- c("firr","noirr")
 
 everything <- list()
 
 if(midway){
   # this works on midway.rcc.uchicago.edu
-  path <- "/project/ggcmi/isi1/isi1.clean/"
+  path <- "/project/ggcmi/isi1/processed/isi1.clean/"
   for(ggcm in ggcms){
     for(gcm in gcms){
       for(rcp in rcps){
@@ -84,20 +84,43 @@ if(cluster){
   # this works on the PIK cluster
   path <- "/iplex/01/2011/isimip/inputdata_bced/HadGEM2-ES/"
   
-  everything <- list()
-  
-  for(gcm in gcms){
-    for(rcp in rcps){
+  for(rcp in rcps){
+    everything <- list()
+    for(gcm in gcms){
       fn <- paste(path,"tas_bced_1960_1999_hadgem2-es_",sep="")
       # extract.T.data is pretty slow with all the loops and point-wise extraction from so many files.
       # But I ran into memory constraints when doing more wasteful data extraction from NC files, so I chose this...
       data <- extract.T.data(fn,index,rcp)
       everything[[paste(gcm,rcp,sep="_")]] <- data
     }
+    save(everything,gcms,file=paste("/iplex/01/2014/macmit/users/cmueller/GGCMI/extracted.daily.Tas.30pix.",rcp,".Rdata")
   }
-  save(list = ls(all = TRUE), file = "extract.RData")
-  save(everything,gcms,file="/iplex/01/2014/macmit/users/cmueller/GGCMI/extracted.daily.Tas.30pix.Rdata")
+  #save(list = ls(all = TRUE), file = "tas.extract.RData")
   
+  
+  for(rcp in rcps){
+    everything <- list()
+    for(gcm in gcms){
+      fn <- paste(path,"prsn_bced_1960_1999_hadgem2-es_",sep="")
+      # extract.T.data is pretty slow with all the loops and point-wise extraction from so many files.
+      # But I ran into memory constraints when doing more wasteful data extraction from NC files, so I chose this...
+      data <- extract.T.data(fn,index,rcp)
+      everything[[paste(gcm,rcp,sep="_")]] <- data
+    }
+    save(everything,gcms,file=paste("/iplex/01/2014/macmit/users/cmueller/GGCMI/extracted.daily.prsn.30pix.",rcp,".Rdata",sep=""))
+  }
+  
+  for(rcp in rcps){
+    everything <- list()
+    for(gcm in gcms){
+      fn <- paste(path,"rsds_bced_1960_1999_hadgem2-es_",sep="")
+      # extract.T.data is pretty slow with all the loops and point-wise extraction from so many files.
+      # But I ran into memory constraints when doing more wasteful data extraction from NC files, so I chose this...
+      data <- extract.T.data(fn,index,rcp)
+      everything[[paste(gcm,rcp,sep="_")]] <- data
+    }
+    save(everything,gcms,file=paste("/iplex/01/2014/macmit/users/cmueller/GGCMI/extracted.daily.rsds.30pix.",rcp,".Rdata",sep=""))
+  }
 }
 # #### testing at PIK
 # fn <- "D:/data/GGCMI/epic_hadgem2-es_ssp2_noco2_yield_whe_annual_1980_2099.nc4"
