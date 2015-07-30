@@ -27,6 +27,7 @@ rootdir=/project/ggcmi/isi1/raw
 outdir=/project/ggcmi/isi1/processed/isi1.long.clean
 
 epicfill=/project/ggcmi/isi1/bin/epic.fill.2066_2068
+imagefill=/project/ggcmi/isi1/bin/image.fill.2001_2004.nc4
 
 irrs=(firr noirr)
 
@@ -82,7 +83,7 @@ for ((i = 0; i < ${#irrs[@]}; i++)); do # irrigation
     ls $fdir/*${var}* >/dev/null 2>&1
     hasvar2=$?
 
-    if  [ $hasvar1 != 0 ] || [ $hasvar2 != 0 ]; then
+    if [ $hasvar1 != 0 ] || [ $hasvar2 != 0 ]; then
         echo Skipping $mod, $g, $cf, $irr, $co, $r, $var . . .
         exit
     fi
@@ -108,6 +109,12 @@ for ((i = 0; i < ${#irrs[@]}; i++)); do # irrigation
     if [ $mod = EPIC ]; then
         ncks -O -h -d time,0,24 hist.nc4 hist.nc4 # select first 25 years
     fi
+    if [ $mod = IMAGE_LEITAP ] && [ $g = HadGEM2-ES ] && [ $co = noco2 ]; then
+    	cp $imagefill imagefill.tmp.nc4
+    	ncrename -O -h -v yield,${var}_${cs} imagefill.tmp.nc4 imagefill.tmp.nc4
+    	ncrcat -O -h hist.nc4 imagefill.tmp.nc4 hist.nc4
+    	rm imagefill.tmp.nc4
+    fi
     ncap2 -O -h -s "time(:)={$timeh}" hist.nc4 hist.nc4
     ncatted -O -h -a units,time,m,c,"years since ${syear}-01-01" hist.nc4 hist.nc4
     ncecat -O -h -u irr hist.nc4 hist.nc4 &> /dev/null
@@ -117,7 +124,7 @@ for ((i = 0; i < ${#irrs[@]}; i++)); do # irrigation
     # future
     if [ $mod = EPIC ]; then
         f1=$fdir/${mod,,}_${g,,}_${r}_ssp2_${co}_${irr}_${var}_${cs}_annual_2005_2035.nc4
-        f2=$fdir/${mod,,}_${g,,}_${r}_ssp2_${co}_${irr}_${var}_${cs}_annual_2035_2065.nc4            
+        f2=$fdir/${mod,,}_${g,,}_${r}_ssp2_${co}_${irr}_${var}_${cs}_annual_2035_2065.nc4 
         f3=$fdir/${mod,,}_${g,,}_${r}_ssp2_${co}_${irr}_${var}_${cs}_annual_2069_2099.nc4
         ncks -O -h -d time,1,30 $f2 $f2.2
         cp $epicfill.$cf.nc4 epicfill.tmp.nc4
