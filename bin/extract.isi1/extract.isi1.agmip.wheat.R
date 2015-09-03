@@ -53,6 +53,10 @@ extract.T.data <- function(fn,ind,rcp){ # filename, mask
 }
 
 ggcms <- c("EPIC","GEPIC","IMAGE_LEITAP","LPJ-GUESS","LPJmL","pDSSAT","PEGASUS")
+f.on.record <- c(1980,1971,1971,1971,1971,1951,1971)
+plant.d <- c(F,T,F,T,T,T,F)
+anth.d <- c(F,F,F,T,F,T,F)
+maty.d <- c(F,T,F,T,T,T,F)
 gcms <- "HadGEM2-ES"
 rcps <- c("rcp2p6","rcp4p5","rcp6p0","rcp8p5")[c(1,4)] # currently only rcp2p6 and rcp8p5 are available in the cleaned version
 irrig <- c("firr","noirr")
@@ -78,6 +82,63 @@ if(midway){
   
   save(everything,ggcms,gcms,rcps,irrig,file="/home/chmueller/GGCMI/extracted.ggcmi.fasttrack.wheat.30pix.Rdata")
   
+  everything <- list()
+  
+  # extract planting days
+  path <- "/project/ggcmi/isi1/processed/isi1.long.clean/"
+  for(ggcm in ggcms){
+    for(gcm in gcms){
+      for(rcp in rcps){
+        fn <- paste(path,ggcm,"/",gcm,"/wheat/",rcp,"/noco2/",tolower(ggcm),"_",tolower(gcm),"_ssp2_noco2_plant-day_whe_annual_",f.on.record[which(ggcms==ggcm)],"_2099.nc4",sep="")
+        if(!is.na(file.info(fn)$size)){
+          data <- extract.data(fn,index)
+          for(ir in 1:length(irrig)){
+            everything[[paste(ggcm,gcm,rcp,irrig[ir],"noco2",sep="_")]] <- data[,,ir]
+          }        
+        }
+      }
+    }
+  }
+  
+  save(everything,ggcms,gcms,rcps,irrig,file="/home/chmueller/GGCMI/extracted.ggcmi.fasttrack.plant_day.wheat.30pix.Rdata")
+  
+  everything <- list()
+  # extract anthesis days
+  path <- "/project/ggcmi/isi1/processed/isi1.long.clean/"
+  for(ggcm in ggcms){
+    for(gcm in gcms){
+      for(rcp in rcps){
+        fn <- paste(path,ggcm,"/",gcm,"/wheat/",rcp,"/noco2/",tolower(ggcm),"_",tolower(gcm),"_ssp2_noco2_anth-day_whe_annual_",f.on.record[which(ggcms==ggcm)],"_2099.nc4",sep="")
+        if(!is.na(file.info(fn)$size)){
+          data <- extract.data(fn,index)
+          for(ir in 1:length(irrig)){
+            everything[[paste(ggcm,gcm,rcp,irrig[ir],"noco2",sep="_")]] <- data[,,ir]
+          }        
+        }
+      }
+    }
+  }
+  
+  save(everything,ggcms,gcms,rcps,irrig,file="/home/chmueller/GGCMI/extracted.ggcmi.fasttrack.anth_day.wheat.30pix.Rdata")
+  
+  everyting <- list()
+  # extract anthesis days
+  path <- "/project/ggcmi/isi1/processed/isi1.long.clean/"
+  for(ggcm in ggcms){
+    for(gcm in gcms){
+      for(rcp in rcps){
+        fn <- paste(path,ggcm,"/",gcm,"/wheat/",rcp,"/noco2/",tolower(ggcm),"_",tolower(gcm),"_ssp2_noco2_maty-day_whe_annual_",f.on.record[which(ggcms==ggcm)],"_2099.nc4",sep="")
+        if(!is.na(file.info(fn)$size)){
+          data <- extract.data(fn,index)
+          for(ir in 1:length(irrig)){
+            everything[[paste(ggcm,gcm,rcp,irrig[ir],"noco2",sep="_")]] <- data[,,ir]
+          }        
+        }
+      }
+    }
+  }
+  
+  save(everything,ggcms,gcms,rcps,irrig,file="/home/chmueller/GGCMI/extracted.ggcmi.fasttrack.maty_day.wheat.30pix.Rdata")
 }
 
 if(cluster){
