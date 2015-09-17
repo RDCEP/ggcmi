@@ -127,7 +127,8 @@ if(midway){
   for(ggcm in ggcms){
     for(gcm in gcms){
       for(rcp in rcps){
-        fn <- paste(path,ggcm,"/",gcm,"/wheat/",rcp,"/noco2/",tolower(ggcm),"_",tolower(gcm),"_ssp2_noco2_maty-day_whe_annual_",f.on.record[which(ggcms==ggcm)],"_2099.nc4",sep="")
+        # for GEPIC the days recoreded in maty-day are in DOY, but harv-day contains the data in the right unit (days from planting)
+        fn <- paste(path,ggcm,"/",gcm,"/wheat/",rcp,"/noco2/",tolower(ggcm),"_",tolower(gcm),if(ggcm=="gepic")"_ssp2_noco2_harv-day_whe_annual_" else "_ssp2_noco2_maty-day_whe_annual_",f.on.record[which(ggcms==ggcm)],"_2099.nc4",sep="")
         if(!is.na(file.info(fn)$size)){
           data <- extract.data(fn,index)
           for(ir in 1:length(irrig)){
