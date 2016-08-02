@@ -11,14 +11,14 @@ heatmap.2b <- function (x, Rowv = TRUE, Colv = if (symm) "Rowv" else TRUE,
                                           "none"), tracecol = "cyan", hline = median(breaks), vline = median(breaks), 
           linecol = tracecol, margins = c(5, 5), ColSideColors, RowSideColors, 
           cexRow = 0.2 + 1/log10(nr), cexCol = 0.2 + 1/log10(nc), labRow = NULL, 
-          second.label = NULL,
+          second.label = NULL,left.margin = 5,
           labCol = NULL, srtRow = NULL, srtCol = NULL, adjRow = c(0, 
                                                                   NA), adjCol = c(NA, 0), offsetRow = 0.5, offsetCol = 0.5, 
           key = TRUE, keysize = 1.5, density.info = c("histogram", 
                                                       "density", "none"), denscol = tracecol, symkey = any(x < 
                                                                                                              0, na.rm = TRUE) || symbreaks, densadj = 0.25, key.title = NULL, 
           key.xlab = NULL, key.ylab = NULL, key.xtickfun = NULL, key.ytickfun = NULL, 
-          key.par = list(), main = NULL, xlab = NULL, ylab = NULL, 
+          key.par = list(), main = NULL, xlab = NULL, ylab = NULL, key.line =par("mgp")[1],
           lmat = NULL, lhei = NULL, lwid = NULL, extrafun = NULL, ...) 
 {
   require(gtools)
@@ -232,7 +232,7 @@ heatmap.2b <- function (x, Rowv = TRUE, Colv = if (symm) "Rowv" else TRUE,
     par(mar = c(0.5, 0, 0, margins[2]))
     image(cbind(1:nc), col = ColSideColors[colInd], axes = FALSE)
   }
-  par(mar = c(margins[1], 0, 0, margins[2]))
+  par(mar = c(margins[1], left.margin, 0, margins[2]))
   x <- t(x)
   cellnote <- t(cellnote)
   if (revC) {
@@ -307,15 +307,16 @@ heatmap.2b <- function (x, Rowv = TRUE, Colv = if (symm) "Rowv" else TRUE,
     mtext(ylab, side = 4, line = margins[2] - 1.25)
   if (!missing(add.expr)) 
     eval(substitute(add.expr))
-  if (!missing(colsep)) 
-    for (csep in colsep) rect(xleft = csep + 0.5, ybottom = 0, 
-                              xright = csep + 0.5 + sepwidth[1], ytop = ncol(x) + 
-                                1, lty = 1, lwd = 1, col = sepcolor, border = sepcolor)
   if (!missing(rowsep)) 
     for (rsep in rowsep) rect(xleft = 0, ybottom = (ncol(x) + 
                                                       1 - rsep) - 0.5, xright = nrow(x) + 1, ytop = (ncol(x) + 
                                                                                                        1 - rsep) - 0.5 - sepwidth[2], lty = 1, lwd = 1, 
                               col = sepcolor, border = sepcolor)
+  # add white bar between first column (for "best") and the rest
+  if (!missing(colsep)) 
+    for (csep in colsep) rect(xleft = csep + 0.5, ybottom = 0, 
+                              xright = csep + 0.5 + sepwidth[1] + if(csep==1) 1 else 0, ytop = ncol(x) + 
+                                1, lty = 1, lwd = 1, col = if(csep==1) "white" else sepcolor, border = sepcolor)
   min.scale <- min(breaks)
   max.scale <- max(breaks)
   x.scaled <- scale01(t(x), min.scale, max.scale)
@@ -449,14 +450,16 @@ heatmap.2b <- function (x, Rowv = TRUE, Colv = if (symm) "Rowv" else TRUE,
               padj = 0.5)
     }
     else if (density.info == "histogram") {
-      h <- hist(x, plot = FALSE, breaks = breaks)
+      #h <- hist(x, plot = FALSE, breaks = breaks)
+      # do not consider best column and fake column for separation in histogram
+      h <- hist(x[-c(1:2),], plot = FALSE, breaks = breaks)
       hx <- scale01(breaks, min.raw, max.raw)
       hy <- c(h$counts, h$counts[length(h$counts)])
       lines(hx, hy/max(hy) * 0.95, lwd = 1, type = "s", 
             col = denscol)
       if (is.null(key.ytickfun)) {
         yargs <- list(at = pretty(hy)/max(hy) * 0.95, 
-                      labels = pretty(hy))
+                      labels = pretty(hy),cex=1.5)
       }
       else {
         yargs <- key.ytickfun()
@@ -471,7 +474,7 @@ heatmap.2b <- function (x, Rowv = TRUE, Colv = if (symm) "Rowv" else TRUE,
       if (is.null(key.ylab)) 
         key.ylab <- "Count"
       if (!is.na(key.ylab)) 
-        mtext(side = 2, key.ylab, line = par("mgp")[1], 
+        mtext(side = 2, key.ylab, line = key.line,#par("mgp")[1], 
               padj = 0.5)
     }
     else if (is.null(key.title)) 
