@@ -75,20 +75,6 @@ get_nc4_data_slice <- function(fname,crd=cr0,dtd=dt0,mpd=mp0,scend=scen0){
   data.bc
 }
 
-get_nc4_ensemble_slice <- function(fname,crd=cr0,dtd=dt0,mpd=mp0,scend=scen0,nm=1,wtd="unweighted"){
-  nf <- nc_open(fname)
-  cr <- which(strsplit(ncatt_get(nf,varid="cr")$long_name,split=", ")[[1]]==crd)
-  dt <- which(strsplit(ncatt_get(nf,varid="dt")$long_name,split=", ")[[1]]==dtd)
-  wt <- which(strsplit(ncatt_get(nf,varid="wt")$long_name,split=", ")[[1]]==wtd)
-  mp <- which(strsplit(ncatt_get(nf,varid="mp")$long_name,split=", ")[[1]]==mpd)
-  scen <- which(strsplit(ncatt_get(nf,varid="top_scens")$long_name,split=", ")[[1]]==scend)
-  # order is wt, nm, cr, mp, dt, time
-  # test if scen dimension is > 1, otherwise object has one dimension less
-  data.bc <- ncvar_get(nf,varid="yield_detrend")[wt,nm,cr,mp,dt,]
-  nc_close(nf)
-  data.bc
-}
-
 get_nc4_ref_slice <- function(fname,crop,dtd=dt0,mpd=mp0){
   nf <- nc_open(fname)
   dt <- which(strsplit(ncatt_get(nf,varid="dt")$long_name,split=", ")[[1]]==dtd)
@@ -121,6 +107,7 @@ cl <- clim[1]
 for(cro in cropss){
   for(ha in harms){
     data <- array(NA,dim=c(length(s.sim:e.sim),length(ggcms),length(aggs)))
+    data.save <- array(NA,dim=c(length(s.sim:e.sim),length(ggcms)))
     for(agg in aggs){
       ggcm.names <- NULL
       ref.data <- get_nc4_ref_slice(paste0(path.ref,"faostat.1961-2012.global.",agg,".nc4"),cro)[s.r:e.r]
@@ -136,9 +123,9 @@ for(cro in cropss){
         data[,which(ggcms==ggcm),which(aggs==agg)] <- buf *FRESHMATTER[which(cropss==cro)]
       }      
     }
-    png(paste0(path.pic,"global_aggregation_best_mask_",cro,"_",ha,"_",cl,"_shifted_ts_no_ensemble.png"),
+    png(paste0(path.pic,"global_aggregation_best_mask_",cro,"_",ha,"_",cl,"_shifted_ts_no_ensemble2.png"),
         width=8*300,height=5*300,res=300,type="cairo",pointsize=10)
-    ra <- range(ref.data,data,na.rm=T)
+    ra <- ra1 <- range(ref.data,data,na.rm=T)
     # add extra space at bottom for legend
     ra[1] <- ra[1] - (ra[2]-ra[1])*0.2
     plot(c(start.year:end.year),ref.data,ylim=ra,type="l",
@@ -169,6 +156,7 @@ for(cro in cropss){
         cor4 <- cor4m1
         r4 <- r4m1
         lines(c(start.year:end.year),c(NA,data[-dim(data)[1],gg,which.max(cor4)]),col=col.mods[gg],lwd=1.5,lty=if(gg>length(ggcms)) 3 else 1)
+        data.save[,gg] <- c(data[-1,gg,which.max(cor4)],NA)
         # adjust names for legend, add SF for "shifted forward"
         if(gg <= length(ggcms) & ggcm.names[gg] != ggcms[gg]){
           ggcm.names[gg] <- paste0(ggcms[gg]," (sf) (",harms[3],")")
@@ -180,6 +168,7 @@ for(cro in cropss){
         cor4 <- cor4p1
         r4 <- r4p1
         lines(c(start.year:end.year),c(data[-1,gg,which.max(cor4)],NA),col=col.mods[gg],lwd=1.5,lty=if(gg>length(ggcms)) 3 else 1)
+        data.save[,gg] <- c(data[-1,gg,which.max(cor4)],NA)
         # adjust names for legend, add SB for "shifted backward"
         if(gg <= length(ggcms) & ggcm.names[gg] != ggcms[gg]){
           ggcm.names[gg] <- paste0(ggcms[gg]," (sb) (",harms[3],")")
@@ -190,6 +179,7 @@ for(cro in cropss){
         cor4 <- cor4b
         r4 <- r4b
         lines(c(start.year:end.year),data[,gg,which.max(cor4)],col=col.mods[gg],lwd=1.5,lty=if(gg>length(ggcms)) 3 else 1)
+        data.save[,gg] <- data[,gg,which.max(cor4)]
       }
       cors[gg] <- max(cor4,na.rm=T) #cor(ref.data,data[,gg],use="pairwise")
       rs[gg] <- r4[which.max(cor4)]
@@ -201,6 +191,10 @@ for(cro in cropss){
            legend=paste(c(ggcm.names,"FAOstat"),c(format(cors,digits=1,nsmall=3),""),
                         c(ifelse(rs<0.001,"***",ifelse(rs<0.05,"**",ifelse(rs<0.1,"*","n.s."))),"")))
     dev.off()
+    # assign(paste(harms[ha],"lines2plot",sep="."),data.save)
+    # assign(paste(harms[ha],"ggcm.names",sep="."),ggcm.names)
+    # assign(paste(harms[ha],"cors",sep="."),cors)
+    save(data.save,ggcm.names,cors,ggcms,rs,ra1,ref.data,file=paste0(path.pic,"global_aggregation_best_mask_",cro,"_",ha,"_",cl,"_shifted_ts_no_ensemble.Rdata"))
   }
 }
 
@@ -277,7 +271,7 @@ for(cro in cropss){
     }
   }
   # one plot for all harms, GGCMS, best masks, best r
-  png(paste0(path.pic,"global_aggregation_best_mask_",cro,"_",cl,"_shifted_ts_no_ensemble_r_vs_mean.bias.png"),
+  png(paste0(path.pic,"global_aggregation_best_mask_",cro,"_",cl,"_shifted_ts_no_ensemble_r_vs_mean.bias2.png"),
       width=8*300,height=5*300,res=300,type="cairo",pointsize=10)
   ra <- range(mean.biases,na.rm=T)
   plot(1:1,ylim=ra,xlim=c(0,1.1),type="n",ylab="mean bias [t/ha]",xlab="correlation (r)")
@@ -299,6 +293,7 @@ for(cro in cropss){
          legend=c(ggcms,"",harms2))
   legend("bottomright",bty="n",legend=bquote(R^2 ~ ":" ~ .(r2) ~ .(sig)),lty=2,col="grey30")
   dev.off()
+  save(model,r2,pv,sig,cors,mean.biases,col.mods,file=paste0(path.pic,"global_aggregation_best_mask_",cro,"_",cl,"_shifted_ts_no_ensemble_r_vs_mean.bias.Rdata"))
 }
 
 
