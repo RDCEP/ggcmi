@@ -2,7 +2,7 @@ taylor.diagram2 <- function (ref, model, weights=NULL,add = FALSE, col = "red", 
                              xlab = "", ylab = "", main = "Taylor Diagram", show.gamma = TRUE, 
                              ngamma = 3, gamma.col = 8, sd.arcs = 0, ref.sd = FALSE, 
                              grad.corr.lines = c(0.2, 0.4, 0.6, 0.8, 0.9), pcex = 1, cex.axis = 1, normalize = FALSE, 
-                             mar = c(5, 4, 6, 6), ...) 
+                             mar = c(5, 4, 6, 6), sig.threshold=0.1, ...) 
 {
   require(weights)
   require(Hmisc)
@@ -195,7 +195,7 @@ taylor.diagram2 <- function (ref, model, weights=NULL,add = FALSE, col = "red", 
       S <- (2 * (1 + R))/(sd.f + (1/sd.f))^2
     }
   }
-  if(Rp > 0.05){ # if p >0.05, plot very light version of dot
+  if(Rp > sig.threshold){ # if p >threshold, plot very light version of dot
     col2 <- col2rgb(col)
     points(sd.f * R, sd.f * sin(acos(R)), pch = pch, 
            col = rgb(col2[1,],col2[2,],col2[3,],30,maxColorValue=255), 
