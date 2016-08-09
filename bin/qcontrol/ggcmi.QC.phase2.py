@@ -374,7 +374,7 @@ for d in dirs:
                 if newname != f:
                     changes += sim2 + 'FILENAME: Change to ' + newname + '\n'
                 
-                info += '{:80s}{:10s}{:10s}{:18s}{:15s}{:14s}{:8s}\n'.format(info_datmat[0], info_datmat[1], \
+                info += '{:90s}{:15s}{:15s}{:18s}{:15s}{:14s}{:8s}\n'.format(info_datmat[0], info_datmat[1], \
                     info_datmat[2], info_datmat[3], info_datmat[4], info_datmat[5], info_datmat[6])
 
     # mark missing data
@@ -423,7 +423,7 @@ for d in dirs:
     else:
         sumfile.write('None\n\n')
         
-    header = '{:80s}{:10}{:10}{:18}{:15}{:14}{:8}'.format('File', 'MaxVal', 'MinVal', 'GridcellsInRange', 'VarName', 'YearRange', 'NumYears')
+    header = '{:90s}{:15}{:15}{:18}{:15}{:14}{:8}'.format('File', 'MaxVal', 'MinVal', 'GridcellsInRange', 'VarName', 'YearRange', 'NumYears')
     sumfile.write('BASIC INFO\n\n')
     sumfile.write(header + '\n')
     sumfile.write('=' * len(header) + '\n')
