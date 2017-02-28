@@ -139,7 +139,6 @@ agg.iizumi <- "fixed_iizumi_mask"
 agg.ray <- "dynamic_ray_mask"
 aggs <- c("fixed_mirca_mask","dynamic_ray_mask","fixed_iizumi_mask","fixed_spam_mask")
 
-list.geoshare <- list()
 
 
 # loop through some other models 
@@ -147,14 +146,12 @@ ggcms <- c("pdssat","epic-boku","epic-iiasa","gepic",
            "papsim","pegasus","lpj-guess","lpjml",
            "cgms-wofost","clm-crop","epic-tamu","orchidee-crop",
            "pepic","prysbi2")
-
 ensembles <- c("rmse","tscorr")
 # loop through crops
 crops <- c("mai","whe","ric","soy")
 cropsi <- c("maize_major","wheat","rice_major","soybean")
 cropsl <- c("Maize","Wheat","Rice","Soy")
 cropsl2 <- c("Maize","Wheat","Rice","Soybean")
-
 
 pchs <- c(0:6,8,11,13,15:18)
 
@@ -209,15 +206,14 @@ if(do.means) prefix <- paste0(prefix,"_national_means_only")
 #### national level comparison
 if(do.gadm0){
   # use biascorr/gadm0/faostat
-  #topps <- c("global","top10")
-  topps <- c("global")
+  topps <- c("global","top10")
   for(cl in 1){
     fao.season <- if(agg.fao=="dynamic_ray_mask") c(max(rayf,cfirst[cl],faof):min(rayl,clast[cl],faol)) - faof+1 else c(max(cfirst[cl],faof):min(clast[cl],faol)) - faof+1
     clim.season.f <- if(agg.fao=="dynamic_ray_mask") c(max(rayf,faof,cfirst[cl]) :min(rayl,faol,clast[cl])) - cfirst[cl]+1 else  c(max(faof,cfirst[cl]) :min(faol,clast[cl])) - cfirst[cl]+1  
     # remove first and last years
     fao.season <- c(fao.season[1+ignore.y]:fao.season[length(fao.season)-ignore.y])
     clim.season.f <- c((clim.season.f[1+ignore.y]):(clim.season.f[length(clim.season.f)-ignore.y]))    
-      
+    
     for(cc in crops){
       fname <- paste0(path.ref,"/faostat/faostat.1961-2012.gadm0.nc4")
       # get valid gadm0 IDs
@@ -236,12 +232,12 @@ if(do.gadm0){
       nc_close(nf)
       # f#*k. different country selection in sim files
       fname<-paste(path,processed.ts,"/biascorr/gadm0/faostat/",agg.fao,"/","pdssat","_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
-                  clast[cl],".biascorr.nc4",sep="")
+                   clast[cl],".biascorr.nc4",sep="")
       nf <- nc_open(fname)
       gadm0.id2 <- ncvar_get(nf,varid="gadm0")
       nc_close(nf)
       sset <- which(gadm0.index %in% gadm0.id & gadm0.index %in% gadm0.id2)
-
+      
       fname <-  paste0(path.ref,"/faostat/faostat.1961-2012.gadm0.nc4")
       r.fao <- get_nc4_ref_slice(fname,cc)[,which(gadm0.id %in% gadm0.id2)]
       # FAO production to use as weight
@@ -267,7 +263,7 @@ if(do.gadm0){
       gadm0.id <- 1:length(gadm0.names)
       fyear.plot <- max(cfirst[cl],faof)+ignore.y
       lyear.plot <- min(clast[cl],faol)-ignore.y
-
+      
       while(length(dev.list())>0) dev.off() # make sure no figures are open to allow for 2 simultaneous figures
       for(topp in topps){
         if(do.png){
@@ -288,12 +284,7 @@ if(do.gadm0){
                                show.gamma=F,normalize=do.norm,col="grey60",pos.cor=F,#pos.cor=if(topp=="global") T else F,
                                main="",#paste(topp,clim[cl],cropsl[which(crops==cc)],"\n",prefix,"\n",agg.fao),
                                type="n",sig.threshold=sig.threshold)
-        list.geoshare[["ggcms"]] <- ggcms
-        list.geoshare[["gadm0s"]] <- gadm0s
-        list.geoshare[["r.fao"]] <- r.fao
-        list.geoshare[["p.fao"]] <- p.fao
-        list.geoshare[["aggs"]] <- aggs
-        list.geoshare[["FRESHMATTER"]] <- FRESHMATTER
+        
         # loop through models and add points to taylor diagram
         for(gg in ggcms){
           cat(gg,": ",sep="")
@@ -327,8 +318,8 @@ if(do.gadm0){
             if(agg!=aggs[1]){
               if(length(data.default.f)>1){
                 buf <- wtd.cor.mod(r.fao.d[fao.season,gadm0s],
-                               data.default.f[clim.season.f,gadm0s],
-                               ww.f[,gadm0s])
+                                   data.default.f[clim.season.f,gadm0s],
+                                   ww.f[,gadm0s])
                 if(buf[1]>cd[1]){
                   cd <- buf
                   dd.f <- data.default.f[clim.season.f,gadm0s]   
@@ -337,8 +328,8 @@ if(do.gadm0){
               }
               if(length(data.fullharm.f)>1){
                 buf <- wtd.cor.mod(r.fao.f[fao.season,gadm0s],
-                                data.fullharm.f[clim.season.f,gadm0s],
-                                ww.f[,gadm0s])
+                                   data.fullharm.f[clim.season.f,gadm0s],
+                                   ww.f[,gadm0s])
                 if(buf[1]>cf[1]){
                   cf <- buf
                   df.f <- data.fullharm.f[clim.season.f,gadm0s] 
@@ -347,8 +338,8 @@ if(do.gadm0){
               }
               if(length(data.harmnon.f)>1){
                 buf <- wtd.cor.mod(r.fao.h[fao.season,gadm0s],
-                               data.harmnon.f[clim.season.f,gadm0s],
-                               ww.f[,gadm0s])
+                                   data.harmnon.f[clim.season.f,gadm0s],
+                                   ww.f[,gadm0s])
                 if(buf[1]>ch[1]){
                   ch <- buf
                   dh.f <- data.harmnon.f[clim.season.f,gadm0s]
@@ -390,8 +381,6 @@ if(do.gadm0){
             shf <- shf/sd.r
             sd.r <- 1
           }
-          list.geoshare[[paste0(gg,"_stats")]] <- list(sdf,sff,shf,sd.r,cd,ch,cf,df.f,dh.f,dd.f)
-          save(list.geoshare,file=paste0(path,"taylor/",cc,".taylor.",topp,".gadm0.best_mask.",clim[cl],".",prefix,".Rdata"))
           if(length(which(!is.na(dd.f)))>1) {
             if(cd[4]>sig.threshold) {
               col2 <- col2rgb("#4575b4")
@@ -438,7 +427,7 @@ if(do.gadm0){
           } else cat("skipping",gg,cc,topp,clim[cl],"harmnon with fao\n")          
         } # for ggcms
         
-
+        
         legend(-2.9,3.9 ,legend=c(ggcms),ncol=3,
                pch=pchs,col=c(rep(1,length(ggcms))),bty="n",cex=0.8,xjust=0)
         legend(2.9,3.9 ,legend=c("default vs. FAOstat","fullharm vs. FAOstat","harm-suffN vs. FAOstat"),

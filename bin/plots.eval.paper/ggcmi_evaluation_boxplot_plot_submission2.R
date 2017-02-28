@@ -195,7 +195,7 @@ for(cc in 1:length(cropsl)){
   # invert lats to match format of other data
   rayr2 <- read.map.from.nc(paste0(path.ray.2015,"NonCategoricalFigure2",cropsr[cc],"05.nc"),"Data")[,360:1]
   b4 <- spBwplotStats(as.vector(rayr2),as.vector(production))  
-  png(paste0(picture.path,cropsl[cc],"_boxplot_r2_prodw_allharms_",tolower(cl),"_1980_2010.png"),
+  png(paste0(picture.path,cropsl[cc],"_boxplot_r2_prodw_allharms_",tolower(cl),"_1980_2010_2.png"),
       height=5*300,width=8*300,res=300,pointsize=10,type="cairo")
   par(mar=c(8,3,5,1),lwd=2)
   ra <- c(0,1)

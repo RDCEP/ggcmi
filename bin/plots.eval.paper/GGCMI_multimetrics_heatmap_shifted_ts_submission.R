@@ -245,7 +245,7 @@ gadm0.whe <- c(48,105,240,186,79,41,14,170,86,232)
 
 colo <- red.yellow.grey.blue.green
 
-prefix <- paste("cr_",cr0,".dt_",dt0,".mp_",mp0,".multimetrics.processing_dt2",sep="")
+prefix <- paste("cr_",cr0,".dt_",dt0,".mp_",mp0,".multimetrics.processing_dt2_testsave",sep="")
 
 for(cc in crops){
   hm0 <- array(NA,dim=c(length(gadm0.names),length(ggcms)*3,length(aggs)))
@@ -542,6 +542,8 @@ for(cc in crops){
              breaks=seq(-1,1,length.out=102),key.line=2.5,symkey=T,adjCol=c(NA,0.5),
              key.xlab="timeseries correlation factor r")
   dev.off()
+  save(hm02,selec,r.fao,tp,tt,gadm0.names,scens,scens2,ggcms,
+       file=paste0(path.out,"heatmap_best_agg_shiftedTS_",cc,".Rdata"))
   
 }#crops
               

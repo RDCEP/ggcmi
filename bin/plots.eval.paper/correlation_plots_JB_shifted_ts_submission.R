@@ -285,6 +285,7 @@ for (cl in clim[1]){
     nf <- nc_open(paste0(path.ref,cropss[cc],"_weight_ray_1961-2008.nc4"))
     rayref <- ncvar_get(nf,varid=paste0("yield_",cropss[cc]))[1,4,,,22:46]
     nc_close(nf)
+    rayr2 <- read.map.from.nc(paste0(path.ray.2015,"NonCategoricalFigure2",cropsr[cc],"05.nc"),"Data")[,360:1]
     mapi <- array(NA,dim=c(720,360,2))
     for(i in 1:720) {
       for(j in 1:360){
@@ -296,7 +297,7 @@ for (cl in clim[1]){
     # 0.9 confidence interval - non signficance in grey (col.r2)
     mapr2[mapi[,,2]>0.1] <- 1.05
     save(mapr2,file=paste0(picture.path,cropsl[cc],"_",tolower(cl),
-                                   "_hist_yield_",cropss[cc],"_ray_vs_iizumi_R2__shifted_ts_processed_dt.Rdata"))
+                                   "_hist_yield_",cropss[cc],"_ray_vs_iizumi_R2__shifted_ts_processed_dt_ignore.Rdata"))
 
     best.cor <- best.cor2 <- best.mod <- best.mod2 <- num30 <- totaln <- totalv <- mean <- map.rsme <- best.rsme <- best.mod.rsme <- map.mae <- best.mae <- best.mod.mae <- array(NA,dim=c(720,360))
     
@@ -307,6 +308,9 @@ for (cl in clim[1]){
         best.mod.rsme[] <- map.mae[] <- best.mae[] <- best.mod.mae[] <- NA
       sn <- paste0(picture.path,cropsl[cc],"_",tolower(cl),"_hist_",ha,"_yield_shifted_ts.Rdata")
       sn2 <- paste0(picture.path,cropsl[cc],"_",tolower(cl),"_hist_",ha,"_yield_boxdata_shifted_ts.Rdata")
+      sn.geoshare <- paste0(picture.path,cropsl[cc],"_",tolower(cl),"_hist_",ha,"_yield_boxdata_geoshare.Rdata")
+      list.geoshare <- list()
+      list.geoshare[["rayr2"]] <- rayr2
       list.stats <- list() # empty list for all GGCM-specific statistics
       list.summarydata <- list() # empty list for boxplots 
       list.data <- list()
@@ -351,10 +355,10 @@ for (cl in clim[1]){
                                                  best.rsme,NA,NA,best.cor,best.mae)
             rm(det.r_ens)
             
-            png(paste0(picture.path,"dummy_shifted_ts_processed_dt.png"),type="cairo")
+            #png(paste0(picture.path,"dummy_shifted_ts_processed_dt.png"),type="cairo")
             b1 <- boxplot(as.vector(best.rsme),plot=F)
             b2 <- boxplot(as.vector(rsquared.sig),plot=F)
-            dev.off()
+            #dev.off()
             b3 <- spBwplotStats(as.vector(best.mae))
             b4 <- spBwplotStats(as.vector(best.mae),as.vector(area.irrf))
             b5 <- spBwplotStats(as.vector(best.mae),as.vector(production))
@@ -372,6 +376,8 @@ for (cl in clim[1]){
                                                         r2_sig_area.stats=list(stats=b8$stats,n=b8$n,out=b8$out,group=b8$group),
                                                         r2_sig_production.stats=list(stats=b9$stats,n=b9$n,out=b9$out,group=b9$group))
             
+            list.geoshare[["ensemble_r2"]] <- rsquared
+            list.geoshare[["ensemble_r2_production.stats"]] <- list(stats=b7$stats,n=b7$n,out=b7$out,group=b7$group)
           }
           next
         }
@@ -389,6 +395,8 @@ for (cl in clim[1]){
         area.rf <- read.map.from.nc(fn,"rainfed")
         area.ir <- read.map.from.nc(fn,"irrigated")
         sim.yield.irif <- array(NA,dim=c(720,360,31))
+        list.geoshare[["area.rf"]] <- area.rf
+        list.geoshare[["area.ir"]] <- area.ir
         
         for (i in 1:dim(sim.yield.ir)[3]){
           sim.yield.irif[,,i] <- (sim.yield.ir[,,i] * area.ir + sim.yield.rf[,,i] * area.rf)/(area.ir + area.rf)
@@ -398,6 +406,7 @@ for (cl in clim[1]){
         fname <- paste0(path.ref.detrend,cropss[cc],"_weight_ray_1961-2008.nc4")
         crop <- cropss[cc]
         r.ray <- get_nc4_ref_slice(fname,crop)
+        list.geoshare[["r.ray"]] <- r.ray
         
         ## detrending and correlation computation (using function detrended_cor)
         r.ray.sub <- r.ray[,,s.r:e.r]
@@ -411,6 +420,12 @@ for (cl in clim[1]){
         ray.mean[!is.finite(ray.mean)] <- NA
         production <- area.irrf * ray.mean
         production[!is.finite(production)] <- NA
+        sum.area <- sum(area.irrf,na.rm=T)
+        sum.production <- sum(production,na.rm=T)
+        list.geoshare[["production"]] <- production
+        list.geoshare[["sum.production"]] <- sum.production
+        list.geoshare[["sum.area"]] <- sum.area
+        list.geoshare[["area.irrf"]] <- area.irrf
         
         for (i in 1:dim(cor.r_sim)[1]){
           for(j in 1:dim(cor.r_sim)[2]){
@@ -477,10 +492,10 @@ for (cl in clim[1]){
         
         list.data[[which(ggcms==gg)]] <- list(det.r_sim,sim.yield.sub,totaln,totalv,rsquared,rsquared.sig,
                                               map.rsme,num30,mean,issig,map.mae)
-        png(paste0(picture.path,"dummy_shifted_ts_processed_dt.png"),type="cairo")
+        #png(paste0(picture.path,"dummy_shifted_ts_processed_dt.png"),type="cairo")
         b1 <- boxplot(as.vector(map.rsme),plot=F)
         b2 <- boxplot(as.vector(rsquared.sig),plot=F)
-        dev.off()
+        #dev.off()
         b3 <- spBwplotStats(as.vector(map.mae))
         b4 <- spBwplotStats(as.vector(map.mae),as.vector(area.irrf))
         b5 <- spBwplotStats(as.vector(map.mae),as.vector(production))
@@ -497,6 +512,7 @@ for (cl in clim[1]){
                                                      r2_production.stats=list(stats=b7$stats,n=b7$n,out=b7$out,group=b7$group),
                                                      r2_sig_area.stats=list(stats=b8$stats,n=b8$n,out=b8$out,group=b8$group),
                                                      r2_sig_production.stats=list(stats=b9$stats,n=b9$n,out=b9$out,group=b9$group))
+        list.geoshare[[paste0(gg,"r2_production.stats")]] <- list(stats=b7$stats,n=b7$n,out=b7$out,group=b7$group)
         if(gg==ggcms[length(ggcms)]){ # do for best model ensemble
           rsquared <- rsquared.sig <- best.cor*best.cor
           rsquared[best.mod<0] <- 0 # include non-significant correlations as zero
@@ -523,10 +539,10 @@ for (cl in clim[1]){
                                                best.rsme,NA,NA,best.cor,best.mae)
           rm(det.r_ens)
           
-          png(paste0(picture.path,"dummy_shifted_ts_processed_dt.png"),type="cairo")
+          #png(paste0(picture.path,"dummy_shifted_ts_processed_dt.png"),type="cairo")
           b1 <- boxplot(as.vector(best.rsme),plot=F)
           b2 <- boxplot(as.vector(rsquared.sig),plot=F)
-          dev.off()
+          #dev.off()
           b3 <- spBwplotStats(as.vector(best.mae))
           b4 <- spBwplotStats(as.vector(best.mae),as.vector(area.irrf))
           b5 <- spBwplotStats(as.vector(best.mae),as.vector(production))
@@ -543,6 +559,8 @@ for (cl in clim[1]){
                                                       r2_production.stats=list(stats=b7$stats,n=b7$n,out=b7$out,group=b7$group),
                                                       r2_sig_area.stats=list(stats=b8$stats,n=b8$n,out=b8$out,group=b8$group),
                                                       r2_sig_production.stats=list(stats=b9$stats,n=b9$n,out=b9$out,group=b9$group))
+          list.geoshare[["ensemble_r2"]] <- rsquared
+          list.geoshare[["ensemble_r2_production.stats"]] <- list(stats=b7$stats,n=b7$n,out=b7$out,group=b7$group)
           
         }
         rm(b1,b2,b3,b4,b5,b6,b7,b8,b9)
@@ -557,38 +575,76 @@ for (cl in clim[1]){
         mapi <- map.rsme
         mapi[mapi>10] <- 10
         save(mapi,file=paste0(picture.path,cropsl[cc],"_", tolower(gg),"_", tolower(cl),
-                              "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_rsme_shifted_ts_processed_dt.Rdata"))
+                              "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_rsme_shifted_ts_processed_dt_ignore.Rdata"))
         # mae
         mapi <- map.mae
         mapi[mapi>10] <- 10
         save(mapi,file=paste0(picture.path,cropsl[cc],"_", tolower(gg),"_", tolower(cl),
-                              "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_mae_shifted_ts_processed_dt.Rdata"))
+                              "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_mae_shifted_ts_processed_dt_ignore.Rdata"))
         rm(mapi)
         gc()
         
       }
       
+      # invert lats to match format of other data
+      rayr2 <- read.map.from.nc(paste0(path.ray.2015,"NonCategoricalFigure2",cropsr[cc],"05.nc"),"Data")[,360:1]
+      
+      # png(paste0(picture.path,cropsl[cc],"_boxplot_r2_sig_allharms_",tolower(cl),"_1980_2010_shifted_ts_processed_dt.png"),
+      #     height=5*300,width=8*300,res=300,pointsize=6,type="cairo")
+      # par(mar=c(8,3,5,1),lwd=2)
+      # ra <- c(0,1)
+      # 
+      # #plot, no content
+      # plot(1:(length(ggcms)+5),ylim=ra,type="n",axes=F,xlab="",ylab="")
+      # axis(2)
+      # mtext("R2",2,line=2)
+      # box()
+      # #axis(1,labels=F)
+      # #text(c(1:length(ggcms))+0.5, par("usr")[3] - 0.1, labels = ggcms, srt = 45, pos = 1, xpd = TRUE,adj=c(1,0))
+      # mtext(c(ggcms,"ensemble best","ensemble X Ray","Ray2015","Ray X ensemble"),1,las=2,adj=1,at=c(1:(length(ggcms)+4))+0.5,line=1)
+      best.x.ray <- best.cor*best.cor
+      best.x.ray[!is.finite(rayr2)] <- NA
+      if(ha==harms[1]){
+        ray.x.best <- rayr2
+        ray.x.best[!is.finite(best.cor)] <- NA
+        b6a <- spBwplotStats(as.vector(ray.x.best),as.vector(area.irrf))
+        b6p <- spBwplotStats(as.vector(ray.x.best),as.vector(production))
+      }
+      # computed weighted stats for next plots
+      assign(paste0("b5a",which(harms==ha)),spBwplotStats(as.vector(best.x.ray),as.vector(area.irrf)))
+      assign(paste0("b5p",which(harms==ha)),spBwplotStats(as.vector(best.x.ray),as.vector(production)))
+      
+      b4 <- spBwplotStats(as.vector(rayr2),as.vector(production))
+      
+      list.geoshare[["best_cor"]] <- best.cor
+      list.geoshare[["best_mod"]] <- best.mod
+      list.geoshare[[paste0("b5p",which(harms==ha))]] <- get(paste0("b5p",which(harms==ha)))
+      list.geoshare[["b6p"]] <- b6p
+      save(list.geoshare,file=sn.geoshare)
+      
       save(det.r_sim,cor.r_sim,best.cor,best.cor2,best.mod,best.mod2,num30,map.rsme,
            totalv,totaln,r.ray.sub,sim.yield.sub,mean,list.stats,list.summarydata,map.mae,
            file=sn)        
-      save(list.summarydata,file=sn2)        
+      save(list=c(paste0("b5p",which(harms==ha)),"b6p","list.summarydata"),file=sn2)        
       
       # plotting best correlation and best model
       mapi <- best.cor * best.cor
       mapi[best.mod==-9] <- 1.05
       save(mapi,file=paste0(picture.path,cropsl[cc],"_best_corrlation_", tolower(cl),
-                                    "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_TEST.R_shifted_ts_processed_dt.Rdata"))
+                                    "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_TEST.R_shifted_ts_processed_dt_ignore.Rdata"))
 
       mapi2 <- best.mod
       mapi2[best.mod==-9] <- NA
       save(mapi2,file=paste0(picture.path,cropsl[cc],"_best_model_", tolower(cl),
-                                     "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_TEST.R_shifted_ts_processed_dt.Rdata"))
+                                     "_hist_",ha, "_yield_",cropss[cc],"_annual_1980_2010_TEST.R_shifted_ts_processed_dt_ignore.Rdata"))
       rm(mapi2)
       gc()
       
 
 
     }#harm
+    
+    
   }#crops
 }#clim
 
