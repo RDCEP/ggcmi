@@ -365,6 +365,8 @@ for(cc in crops){
              breaks=seq(-ra,ra,length.out=102),key.line=2.5,symkey=T,adjCol=c(NA,0.5),
              key.xlab="mean bias")
   dev.off()
-
+  save(hm0,selec,r.fao,tp,tt,gadm0.names,scens,scens2,ggcms,
+       file=paste0(path.out,"heatmap_best_agg_mean_bias_",cc,".Rdata"))
+  
 }#crops
               

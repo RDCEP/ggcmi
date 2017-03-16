@@ -245,7 +245,7 @@ gadm0.whe <- c(48,105,240,186,79,41,14,170,86,232)
 
 colo <- red.yellow.grey.blue.green
 
-prefix <- paste("cr_",cr0,".dt_",dt0,".mp_",mp0,".multimetrics.processing_dt",sep="")
+prefix <- paste("cr_",cr0,".dt_",dt0,".mp_",mp0,".multimetrics.processing_dt2_testsave",sep="")
 
 for(cc in crops){
   hm0 <- array(NA,dim=c(length(gadm0.names),length(ggcms)*3,length(aggs)))
@@ -269,7 +269,7 @@ for(cc in crops){
         sset <- which(gadm0.index %in% gadm0.id & gadm0.index %in% gadm0.id2)
         
         fname <-  paste0(path.ref,"/faostat/faostat.1961-2012.gadm0.nc4")
-        r.fao <- get_nc4_ref_slice(fname,cc)[,which(gadm0.id %in% gadm0.id2)]
+        r.fao <- get_nc4_ref_slice(fname,cc,dtd="none",mpd="true")[,which(gadm0.id %in% gadm0.id2)]
         
         fao.season <- c(max(rayf,cfirst[cl],faof):min(rayl,clast[cl],faol)) - faof+1
         clim.season.f <- c(max(rayf,faof,cfirst[cl]) :min(rayl,faol,clast[cl])) - cfirst[cl]+1
@@ -280,9 +280,9 @@ for(cc in crops){
         fn <- paste(path,processed.ts,"/biascorr/gadm0/faostat/",agg,"/",gg,"_",clim[cl],"_hist_",cc,"_annual_",cfirst[cl],"_",
                     if(cl==2 & (gg=="pegasus" | gg=="lpjml")) clast[cl]+1 else clast[cl],".biascorr.nc4",sep="")
         if(file.exists(fn)){
-          data.default.f <- get_nc4_data_slice(fname=fn,scend="default")
-          data.fullharm.f <- get_nc4_data_slice(fname=fn,scend="fullharm")
-          data.harmnon.f <- get_nc4_data_slice(fname=fn,scend="harmnon")
+          data.default.f <- get_nc4_data_slice(fname=fn,dtd="none",mpd="true",scend="default")
+          data.fullharm.f <- get_nc4_data_slice(fname=fn,dtd="none",mpd="true",scend="fullharm")
+          data.harmnon.f <- get_nc4_data_slice(fname=fn,dtd="none",mpd="true",scend="harmnon")
         } else{
           data.default.f <- data.fullharm.f <- data.harmnon.f <- array(NA,dim=c(31,208))
         }
@@ -542,6 +542,8 @@ for(cc in crops){
              breaks=seq(-1,1,length.out=102),key.line=2.5,symkey=T,adjCol=c(NA,0.5),
              key.xlab="timeseries correlation factor r")
   dev.off()
+  save(hm02,selec,r.fao,tp,tt,gadm0.names,scens,scens2,ggcms,
+       file=paste0(path.out,"heatmap_best_agg_shiftedTS_",cc,".Rdata"))
   
 }#crops
               

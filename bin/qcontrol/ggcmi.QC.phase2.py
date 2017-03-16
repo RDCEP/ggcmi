@@ -10,9 +10,9 @@ from numpy import inf, float32, zeros, ones, where, diff, isnan, array_equal, lo
 
 def climate_years(clim_names):
     clim_names_list = ['PGFv2', 'AgCFSR', 'AgMERRA', 'CFSR', 'ERAI', 'GRASP', \
-                       'Princeton', 'WATCH', 'WFDEI.CRU', 'WFDEI.GPCC', 'GSWP3']
+                       'Princeton', 'WATCH', 'WFDEI.CRU', 'WFDEI.GPCC', 'GSWP3', 'phase2']
     year_range_list = [[1901, 2012], [1980, 2010], [1980, 2010], [1980, 2010], [1979, 2010], [1961, 2010], \
-                       [1948, 2008], [1958, 2001], [1979, 2009], [1979, 2009], [1901, 2010]]
+                       [1948, 2008], [1958, 2001], [1979, 2009], [1979, 2009], [1901, 2010], [1980, 2010]]
     yrs = [0] * len(clim_names)
     for i in range(len(clim_names)):
         if clim_names[i] in clim_names_list:
@@ -22,7 +22,7 @@ def climate_years(clim_names):
     return yrs
 
 def abr_crop_names(crop_names):
-    full_names_list = ['maize', 'winterwheat', 'springwheat', 'soy', 'rice', 'sorghum', 'millet', \
+    full_names_list = ['maize', 'winter_wheat', 'spring_wheat', 'soy', 'rice', 'sorghum', 'millet', \
                        'managed_grass', 'sugarcane', 'barley', 'oat', 'rapeseed', \
                        'rye', 'sugar_beet', 'sunflower']
     abr_names_list = ['mai', 'wwh', 'swh', 'soy', 'ric', 'sor', 'mil', \
