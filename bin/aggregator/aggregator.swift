@@ -1,7 +1,7 @@
 type file;
 
 app (file o) get_inputs () {
-   inputs stdout = @o;  
+   inputs stdout = @o;
 }
 
 app (file o) aggregator (string indir, string crop, string lufile, string aggfile, string gsfile, string outfile) {

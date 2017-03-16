@@ -217,6 +217,7 @@ for i in range(len(scens_full)):
     ymsk = logical_not(yvar.mask)
 
     # compute areas
+    print ymsk.sum(), ymsk.shape, adata.shape, weights[iidx].shape
     areas[:, :, sidx, iidx] = avobj.areas(yvar, adata, lats, weights[iidx], calcarea)
 
     for j in range(nv):
