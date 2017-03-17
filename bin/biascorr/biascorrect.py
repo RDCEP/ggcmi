@@ -31,9 +31,9 @@ reffile = options.reffile
 agglvl  = options.agglvl
 outdir  = options.outdir
 
-dt = ['none', 'lin', 'quad', 'ma', 'ffdtr'] # methods
+dt = ['none', 'quad', 'ma'] # methods
 mp = ['true', 'false']
-cr = ['none', 'variance-scale', 'mean-scale']
+cr = ['none', 'mean-scale']
 ndt, nmp, ncr = len(dt), len(mp), len(cr)
 
 crop = split(infile)[1].split('_')[3] # pull crop name from file name
