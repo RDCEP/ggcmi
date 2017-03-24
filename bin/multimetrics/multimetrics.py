@@ -40,7 +40,7 @@ munits    = options.munits
 mlongname = options.mlongname
 outfile   = options.outfile
 
-tranges = ['full', '1980-2001', '1980-2009']
+tranges = ['full']
 ntimes  = len(tranges)
 
 crop = split(infile)[1].split('_')[3]
@@ -78,7 +78,7 @@ naggs, nscen, ndt, nmp, ncr = len(ain), len(scen), len(dt), len(mp), len(cr)
 
 sh = (naggs, nscen, ndt, nmp, ncr, ntimes)
 
-times = [tin, range(1980, 2002), range(1980, 2010)]
+times = [tin]
 dtidx, mpidx = dtref.index('none'), mpref.index('true')
 
 mobj = MetricsWrapper(metric)
