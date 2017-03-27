@@ -1,2 +1,2 @@
-sandyb multiensemble /project/joshuaelliott/ggcmi/bin/multimetrics.ensemble/multimetrics.ensemble_wrapper.sh null null null
-sandyb inputs /project/joshuaelliott/ggcmi/bin/multimetrics.ensemble/inputs.sh null null null
+midway multiensemble multimetrics.ensemble_wrapper.sh null null null
+midway inputs inputs.sh null null null

@@ -5,15 +5,14 @@ reffile=$2
 agglvl=$3
 outdir=$4
 
-metrics=(tscorr varratio rmse hitrate rmse_extreme bias_extreme)
-munits=("" "" "t ha-1 yr-1" "" "t ha-1 yr-1" "t ha-1 yr-1")
-mlongnames=("time series correlation" "variance ratio" "root mean squared error" "hit rate" "RMSE of extreme events" "bias of extreme events")
-
+metrics=(rmse)
+munits=("t ha-1 yr-1")
+mlongnames=("root mean squared error")
 outfile=$outdir/$(basename $infile)
 outfile=${outfile/ensemble/multimetrics}
 
 for ((i = 0; i < ${#metrics[@]}; i++)); do
-   /project/joshuaelliott/ggcmi/bin/multimetrics.ensemble/multimetrics.ensemble.py -i $infile -r $reffile -a $agglvl -m "${metrics[$i]}" -u "${munits[$i]}" -l "${mlongnames[$i]}" -o tmp.nc
+   multimetrics.ensemble.py -i $infile -r $reffile -a $agglvl -m "${metrics[$i]}" -u "${munits[$i]}" -l "${mlongnames[$i]}" -o tmp.nc
    if [ $i = 0 ]; then
       mv tmp.nc $outfile
    else
