@@ -1,2 +1,2 @@
-sandyb modelensemble /project/joshuaelliott/ggcmi/bin/modelensemble/modelensemble.py null null null
-sandyb inputs /project/joshuaelliott/ggcmi/bin/modelensemble/inputs.sh null null null
+midway modelensemble modelensemble.py null null null
+midway inputs inputs.sh null null null
