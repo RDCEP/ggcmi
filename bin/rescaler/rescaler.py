@@ -11,7 +11,7 @@ from optparse import OptionParser
 from filespecs import RescaledFile
 from os.path import basename, splitext, isfile
 from numpy.ma import masked_array, masked_where
-from numpy import ones, zeros, where, isnan, cos, pi, resize, logical_and
+from numpy import ones, zeros, where, isnan, cos, pi, resize, logical_and, arange
 
 parser = OptionParser()
 parser.add_option("-i", "--irfile", dest = "irfile", default = "", type = "string",
@@ -73,6 +73,21 @@ with nc(bcfile) as f: # load bias-corrected file
 
 time += int(findall(r'\d+', tunits)[0]) # get time in years
 
+y1, y2 = [int(y) for y in findall(r'\d+', splitext(basename(irfile))[0])[-2 :]]
+ftime  = arange(y1, y2 + 1)
+with nc(irfile) as f:
+    var = f.variables[vname]
+    if len(var) != len(ftime): # happens with epic-test
+        ftime = f.variables['time'][:] + int(findall(r'\d+', f.variables['time'].units)[0]) - 1
+
+tmin, tmax = max(time[0], ftime[0]), min(time[-1], ftime[-1]) # time bounds
+
+btidx0, btidx1 = where(time == tmin)[0][0], where(time == tmax)[0][0] + 1
+ftidx0, ftidx1 = where(ftime == tmin)[0][0], where(ftime == tmax)[0][0] + 1
+
+time = time[btidx0 : btidx1]
+ydtr = ydtr[:, btidx0 : btidx1]
+yrtr = yrtr[:, btidx0 : btidx1]
 ydtr = masked_where(isnan(ydtr), ydtr) # convert NaNs to masked
 yrtr = masked_where(isnan(yrtr), yrtr)
 
@@ -87,23 +102,17 @@ areatot = masked_where(areatot == 0, areatot)
 
 varr = masked_array(zeros((nt, nlats, nlons, nirr)), mask = ones((nt, nlats, nlons, nirr)))
 
-y1, y2 = [int(y) for y in findall(r'\d+', splitext(basename(irfile))[0])[-2 :]]
-ftime  = range(y1, y2 + 1)
-
 with nc(irfile) as f:
     var = f.variables[vname]
 
     units = var.units     if 'units'     in var.ncattrs() else ''
     lname = var.long_name if 'long_name' in var.ncattrs() else ''
 
-    if len(var) != len(ftime): # happens with epic-test
-        ftime = f.variables['time'][:] + int(findall(r'\d+', f.variables['time'].units)[0]) - 1
-
-    varr[:, :, :, 0] = var[logical_and(ftime >= time[0], ftime <= time[-1])]
+    varr[:, :, :, 0] = var[ftidx0 : ftidx1]
 
 if isfile(rffile):
     with nc(rffile) as f:
-        varr[:, :, :, 1] = f.variables[vname][logical_and(ftime >= time[0], ftime <= time[-1])]
+        varr[:, :, :, 1] = f.variables[vname][ftidx0 : ftidx1]
 
 varr[isnan(varr)] = 0.
 
