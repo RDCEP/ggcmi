@@ -1,0 +1,143 @@
+# Directory containing aggregation masks like gadm0.mask.nc4
+aggr_mask_directory: /project/ggcmi/phase1.final/processed.simple/masks/aggr
+
+# Location of <crop>_growing_season_dates.nc4
+growing_season_directory: /project/ggcmi/AgMIP.input/other.inputs/agmip_growing_season.1.23.processed
+
+# Location of model inputs
+model_directory: /project/ggcmi/phase1.final
+
+# Processed directories
+agg_directory: /project/ggcmi/phase1.final/processed.simple/aggs
+biascorr_directory: /project/ggcmi/phase1.final/processed.simple/biascorr
+multimetrics_directory: /project/ggcmi/phase1.final/processed.simple/multimetrics
+modelensemble_directory: /project/ggcmi/phase1.final/processed.simple/modelensemble
+
+# Ray settings
+ray_mask_directory: /project/joshuaelliott/ggcmi/reference/ray/masks
+ray_reference_directory: /project/joshuaelliott/ggcmi/reference
+
+# Directory containing non-ray reference files
+reference_directory: /project/ggcmi/AgMIP.input/other.inputs/reference
+weight_directory: /project/ggcmi/phase1.final/processed.simple/masks/weight
+
+# List of aggregation levels (eg., gadm0, fpu, kg, global)
+aggregation_levels:
+    - gadm0
+    - global
+
+# List of areas (eg., mirca, ray, iizumi, spam)
+areas:
+    - mirca
+
+# Long names of relevant crops
+crops_long:
+    - maize
+    - wheat
+    - rice
+    - soy
+    - sorghum
+    - millet
+
+# Short names of relevant crops. Must match long names exactly, in same order
+crops_short:
+    - mai
+    - whe
+    - ric
+    - soy
+    - sor
+    - mil
+
+# Full list of models. Case sensitive, must match exactly the directory names.
+models:
+    - pDSSAT
+    - pAPSIM
+    - LPJ-GUESS
+    - LPJmL
+    - PEGASUS
+    - GEPIC
+    - EPIC-IIASA
+    - EPIC-Boku
+    - EPIC-test
+    - CGMS-WOFOST
+    - CLM-Crop
+    - EPIC-TAMU
+    - ORCHIDEE
+    - ORCHIDEE-crop
+    - PEPIC
+    - PRYSBI2
+
+# Climate names used in model files
+climates:
+    - AgMERRA
+    - AgCFSR
+    - CFSR
+    - ERAI
+    - GRASP
+    - WATCH
+    - WFDEI.CRU
+    - WFDEI.GPCC
+    - Princeton
+
+# Climate years used in model files
+climate_years:
+    - "1980_2010"
+    - "1980_2010"
+    - "1980_2010"
+    - "1979_2010"
+    - "1961_2010"
+    - "1958_2001"
+    - "1979_2012"
+    - "1979_2010"
+    - "1948_2008"
+
+reference_short:
+    - faostat
+
+reference_long:
+    - faostat.1961-2012
+
+# Detrending methods
+dt:
+    - none
+    - quad
+    - ma
+
+# Mean preserving
+mp:
+    - "true"
+    - "false"
+
+cr:
+    - none
+    - mean-scale
+
+# Time ranges used in multimetrics (eg., 'full', '1980-2001', '1980-2009')
+time_ranges:
+    - full
+
+# Order matters for these next three se
+metrics:
+    - tscorr
+    - varratio
+    - rmse
+    - hitrate
+    - rmse_extreme
+    - bias_extreme
+
+metrics_units:
+    - ""
+    - ""
+    - "t ha-1 yr-1"
+    - ""
+    - "t ha-1 yr-1"
+    - "t ha-1 yr-1"
+
+metrics_longnames:
+    - "time series correlation"
+    - "variance ratio"
+    - "root mean squared error"
+    - "hit rate"
+    - "RMSE of extreme events"
+    - "bias of extreme events"
+
