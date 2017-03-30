@@ -14,6 +14,7 @@ from numpy.ma import masked_array
 from metrics import MetricsWrapper
 from filespecs import MultimetricsFile
 from numpy import where, ones, zeros, logical_and, arange
+import ruamel.yaml
 
 parser = OptionParser()
 parser.add_option("-i", "--infile", dest = "infile", default = "", type = "string",
@@ -30,6 +31,8 @@ parser.add_option("-l", "--mlongname", dest = "mlongname", default = "root mean 
                   help = "Metric long name")
 parser.add_option("-o", "--outfile", dest = "outfile", default = "", type = "string",
                   help = "Output file")
+parser.add_option("-p", "--params", dest = "params", default = "", type = "string",
+                  help = "YAML param file")
 options, args = parser.parse_args()
 
 infile    = options.infile
@@ -39,9 +42,9 @@ metric    = options.metric
 munits    = options.munits
 mlongname = options.mlongname
 outfile   = options.outfile
-
-tranges = ['full']
-ntimes  = len(tranges)
+params    = ruamel.yaml.load(open(options.params, 'r'), ruamel.yaml.RoundTripLoader)
+tranges   = params['time_ranges']
+ntimes    = len(tranges)
 
 crop = split(infile)[1].split('_')[3]
 

@@ -1,7 +1,7 @@
 type file;
 
-app (file o) get_inputs () {
-   inputs stdout = @o;  
+app (file o) get_inputs (string params) {
+   inputs params stdout = @o;
 }
 
 app modelensemble(string indir, string metricsdir, string agglvl, string weather, string crop, string metric, string outdir) {
@@ -18,9 +18,9 @@ type Inputs {
 string climates[] = strsplit(arg("w"), ",");
 string crops[]    = strsplit(arg("c"), ",");
 string metrics[]  = strsplit(arg("m"), ",");
-
+string params = arg("params");
 file ff <"finder.out">;
-ff = get_inputs();
+ff = get_inputs(params);
 Inputs inp[] = readData(ff);
 
 foreach i in inp {

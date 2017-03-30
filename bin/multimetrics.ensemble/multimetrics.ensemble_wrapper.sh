@@ -4,15 +4,19 @@ infile=$1
 reffile=$2
 agglvl=$3
 outdir=$4
+params=$5
 
-metrics=(rmse)
-munits=("t ha-1 yr-1")
-mlongnames=("root mean squared error")
+COMMONDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../common" && pwd )"
+source $COMMONDIR/common_inputs.sh
+
+metrics=( $( get_param metrics ) )
+metrics_units=( $( get_param metrics_units ) )
+metrics_longnames=( $( get_param metrics_longnames ) )
 outfile=$outdir/$(basename $infile)
 outfile=${outfile/ensemble/multimetrics}
 
 for ((i = 0; i < ${#metrics[@]}; i++)); do
-   multimetrics.ensemble.py -i $infile -r $reffile -a $agglvl -m "${metrics[$i]}" -u "${munits[$i]}" -l "${mlongnames[$i]}" -o tmp.nc
+   multimetrics.ensemble.py -i $infile -r $reffile -a $agglvl -m "${metrics[$i]}" -u "${metrics_units[$i]}" -l "${metrics_longnames[$i]}" -o tmp.nc
    if [ $i = 0 ]; then
       mv tmp.nc $outfile
    else

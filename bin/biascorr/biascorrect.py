@@ -14,6 +14,7 @@ from filespecs import BiasCorrectFile
 from biascorrecter import BiasCorrecter
 from os.path import split, splitext, sep
 from numpy import intersect1d, zeros, ones
+import ruamel.yaml
 
 parser = OptionParser()
 parser.add_option("-i", "--infile", dest = "infile", default = "", type = "string",
@@ -24,16 +25,19 @@ parser.add_option("-a", "--agglvl", dest = "agglvl", default = "gadm0", type = "
                   help = "Aggregation level (e.g., gadm0, fpu, kg)")
 parser.add_option("-o", "--outdir", dest = "outdir", default = "", type = "string",
                   help = "Output directory to save results")
+parser.add_option("-p", "--params", dest = "params", default = "", type = "string",
+                  help = "YAML params file")
 options, args = parser.parse_args()
 
 infile  = options.infile
 reffile = options.reffile
 agglvl  = options.agglvl
 outdir  = options.outdir
+params  = ruamel.yaml.load(open(options.params, 'r'), ruamel.yaml.RoundTripLoader)
 
-dt = ['none', 'quad', 'ma'] # methods
-mp = ['true', 'false']
-cr = ['none', 'mean-scale']
+dt = params['dt']
+mp = params['mp']
+cr = params['cr']
 ndt, nmp, ncr = len(dt), len(mp), len(cr)
 
 crop = split(infile)[1].split('_')[3] # pull crop name from file name

@@ -1,2 +1,2 @@
-midway multimetrics /project/joshuaelliott/ggcmi/bin/multimetrics/multimetrics_wrapper.sh null null null
-midway inputs /project/joshuaelliott/ggcmi/bin/multimetrics/inputs.sh null null null
+midway multimetrics multimetrics_wrapper.sh null null null
+midway inputs inputs.sh null null null

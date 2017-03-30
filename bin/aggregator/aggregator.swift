@@ -1,7 +1,7 @@
 type file;
 
-app (file o) get_inputs () {
-   inputs stdout = @o;
+app (file o) get_inputs (string params) {
+   inputs params stdout = @o;
 }
 
 app (file o) aggregator (string indir, string crop, string lufile, string aggfile, string gsfile, string outfile) {
@@ -17,8 +17,9 @@ type Inputs {
     string outfile;
 }
 
+string params = arg("params");
 file ff <"finder.out">;
-ff = get_inputs();
+ff = get_inputs(params);
 Inputs input[] = readData(ff);
 
 foreach i, idx in input {
