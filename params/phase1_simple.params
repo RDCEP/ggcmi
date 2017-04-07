@@ -12,6 +12,7 @@ agg_directory: /project/ggcmi/phase1.final/processed.simple/aggs
 biascorr_directory: /project/ggcmi/phase1.final/processed.simple/biascorr
 multimetrics_directory: /project/ggcmi/phase1.final/processed.simple/multimetrics
 modelensemble_directory: /project/ggcmi/phase1.final/processed.simple/modelensemble
+rescaled_directory: /project/ggcmi/phase1.final/processed.simple/rescaled
 
 # Ray settings
 ray_mask_directory: /project/joshuaelliott/ggcmi/reference/ray/masks
@@ -141,3 +142,11 @@ metrics_longnames:
     - "RMSE of extreme events"
     - "bias of extreme events"
 
+rescaler:
+    level: gadm0
+    area: mirca
+    reference: faostat
+    dt: ma
+    mp: "true"
+    cr: mean-scale
+    scen: default

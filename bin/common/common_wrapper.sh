@@ -17,6 +17,6 @@ cleanup()
    if [ "$1" -eq 0 ]; then
       echo Cleaning up, please wait
       sleep 5
-      rm -rf run??? finder.out logs
+      rm -rf run??? finder.out # logs
    fi
 }
