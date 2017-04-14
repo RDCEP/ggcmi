@@ -8,7 +8,7 @@ from netCDF4 import Dataset
 from argparse import ArgumentParser
 from os.path import basename, splitext, isfile
 from numpy.ma import masked_array, masked_where
-from numpy import ones, zeros, where, isnan, arange, nanmean, isfinite
+from numpy import ones, zeros, where, isnan, arange, nanmean, isfinite, cos, pi, resize
 from filespecs import RescaledFile
 import numpy
 import yaml
@@ -142,6 +142,14 @@ varr[isnan(varr)] = 0.
 correction_data = numpy.full((len(lats), len(lons)), 1.e+20)
 warnings.filterwarnings('ignore')
 
+# Compute area info for sum dimension
+area    = 100 * (111.2 / 2) ** 2 * cos(pi * lats / 180) # get areas
+area    = resize(area, (nlons, nlats)).T
+areair  = resize(area * wir, (nt, nlats, nlons))
+arearf  = resize(area * wrf, (nt, nlats, nlons))
+areatot = areair + arearf
+areatot = masked_where(areatot == 0, areatot)
+
 for i in range(len(agglevels)):
     latidxs, lonidxs = where(aggmap == agglevels[i])
     detrend_ma = nanmean(detrend[i, :, scenidx, dtidx, mpidx, cridx])
@@ -153,7 +161,7 @@ for i in range(len(agglevels)):
                                                                            correction)
         correction_data[latidxs, lonidxs] = correction
         varr[:, latidxs, lonidxs, 0:2] *= correction
-    varr[:, latidxs, lonidxs, 2] = varr[:, latidxs, lonidxs, 0] + varr[:, latidxs, lonidxs, 1]
+varr[:, :, :, 2] = (areair * varr[:, :, :, 0] + arearf * varr[:, :, :, 1]) / areatot
 
 fout = RescaledFile(outfile, time, lats, lons, ['ir', 'rf', 'sum'])
 fout.append(vname, varr, ('time', 'lat', 'lon', 'irr'), units, lname)
