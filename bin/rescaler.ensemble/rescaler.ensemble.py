@@ -14,6 +14,7 @@ from netCDF4 import Dataset as nc
 from optparse import OptionParser
 from filespecs import RescaledFile
 from numpy import where, unique, array, ones, zeros, logical_and
+import yaml
 
 parser = OptionParser()
 parser.add_option("-i", "--infile", dest = "infile", default = "tscorr_agmerra_hist_mai_annual_1980_2010.ensemble.nc4", type = "string",
@@ -28,33 +29,44 @@ parser.add_option("-a", "--agglvl", dest = "agglvl", default = "gadm0", type = "
                   help = "Aggregation level (e.g., gadm0, fpu, kg)")
 parser.add_option("-o", "--outfile", dest = "outfile", default = "", type = "string",
                   help = "Output ensemble rescaled spatial file")
+parser.add_option("-p", "--params", dest = "params", default = "", type = "string",
+                  help = "Parameters file")
 options, args = parser.parse_args()
 
-infile  = options.infile
-indir   = options.indir
-mkfile  = options.mkfile
-crmthd  = options.crmthd
-agglvl  = options.agglvl
+infile = options.infile
+indir = options.indir
+mkfile = options.mkfile
+crmthd = options.crmthd
+agglvl = options.agglvl
 outfile = options.outfile
 
+params = yaml.load(open(options.params))
+dt = params['rescaler']['dt']
+mp = params['rescaler']['mp']
+cr = params['rescaler']['cr']
+
 dtidx, mpidx, cridx = [int(m) for m in crmthd.split(',')]
-
 climate, crop = [basename(infile).split('_')[idx] for idx in [1, 3]]
-
 vname = 'yield_' + crop
 
 with nc(mkfile) as f:
     aggmap = f.variables[agglvl][:]
 
 with nc(infile) as f:
-    aggs = f.variables[agglvl][:]
+    try:
+        dtidx = f.variables['dt'].long_name.split(', ').index(dt)
+        mpidx = f.variables['mp'].long_name.split(', ').index(mp)
+        cridx = f.variables['cr'].long_name.split(', ').index(cr)
+    except ValueError as e:
+        print "%s is missing a required dimension (dt=%s, mp=%s, or cr=%s)" % (infile, dtidx, mpidx, cridx)
+        print e
+        sys.exit(0)
 
+    aggs = f.variables[agglvl][:]
     time  = f.variables['time'][:]
     time += int(findall(r'\d+', f.variables['time'].units)[0])
-
     modelnames = f.variables['model_order'].long_name.split(', ')
     modelorder = f.variables['model_order'][:, dtidx, mpidx, cridx, 0] # top model
-
     scennames = f.variables['top_scens'].long_name.split(', ')
     topscens  = f.variables['top_scens'][:, dtidx, mpidx, cridx, 0] # top scenario
 
@@ -62,39 +74,34 @@ mask = modelorder.mask # remove masked values
 aggs = aggs[~mask]
 modelorder = modelorder[~mask]
 topscens = topscens[~mask]
-
 naggs = len(aggs)
-
 modelscen = [0] * naggs
+
 for i in range(naggs):
     modelscen[i] = modelnames[int(modelorder[i] - 1)] + ',' + scennames[int(topscens[i] - 1)]
 
 umodelscen = unique(modelscen) # unique model-scenarios
-
 nuniq = len(umodelscen)
-
 uaggs = [0] * nuniq
+
 for i in range(nuniq):
     idx = where(array(modelscen) == umodelscen[i])[0]
     uaggs[i] = aggs[idx]
 
 dirlist = listdir(indir)
-
 files = [0] * nuniq
+
 for i in range(nuniq):
     model, scen = umodelscen[i].split(',')
-
     f = fnmatch.filter(dirlist, '%s_%s*%s_yield*%s*' % (model, climate, scen, crop))
-    if len(f) != 1:
-        raise Exception('Could not find single file match for %s, %s, %s, %s' % (model, climate, scen, crop))
-
+    if len(f) < 1:
+        exit(0)
     files[i] = indir + sep + f[0]
 
-with nc(files[0]) as f: # read first file for dimensions, etc.
+# read first file for dimensions
+with nc(files[0]) as f:
     lats, lons = f.variables['lat'][:], f.variables['lon'][:]
-
     irr = f.variables['irr'].long_name.split(', ')
-
     vunits = f.variables[vname].units
     vlname = f.variables[vname].long_name
 
@@ -105,21 +112,19 @@ for i in range(nuniq):
     with nc(files[i]) as f:
         timef  = f.variables['time'][:]
         timef += int(findall(r'\d+', f.variables['time'].units)[0])
-
         yldf = f.variables[vname][:] # yield(time, lat, lon, irr)
 
     tmin = max(time.min(), timef.min())
     tmax = min(time.max(), timef.max())
-
-    tidx  = logical_and(time  >= tmin, time  <= tmax)
+    tidx  = logical_and(time >= tmin, time <= tmax)
     tidxf = logical_and(timef >= tmin, timef <= tmax)
+    print "NC file %s" % files[i]
 
     for j in range(len(uaggs[i])):
+        print "Using country %s" % uaggs[i][j]
         latidx, lonidx = where(aggmap == uaggs[i][j])
-
-        ytmp       = yld[:,  latidx, lonidx, :].copy()
+        ytmp = yld[:,  latidx, lonidx, :].copy()
         ytmp[tidx] = yldf[:, latidx, lonidx, :][tidxf]
-
         yld[:, latidx, lonidx, :] = ytmp
 
 fout = RescaledFile(outfile, time, lats, lons, irr)

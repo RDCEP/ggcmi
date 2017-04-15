@@ -1,2 +1,2 @@
-sandyb rescaler /project/joshuaelliott/ggcmi/bin/rescaler.ensemble/rescaler.ensemble.py null null null
-sandyb inputs /project/joshuaelliott/ggcmi/bin/rescaler.ensemble/inputs.sh null null null
+midway rescaler rescaler.ensemble.py null null null
+midway inputs inputs.sh null null null

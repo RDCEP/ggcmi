@@ -1,10 +1,26 @@
 #!/bin/bash
 
-PATH=$PATH:/project/joshuaelliott/ggcmi/utils
+# Source common wrapper functions
+COMMONDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../common" && pwd )"
+source $COMMONDIR/common_wrapper.sh
+source $COMMONDIR/common_inputs.sh
 
-swift -tc.file tc.data -sites.file midway.xml -config swift.properties rescaler.ensemble.swift
+# Command line
+while [ $# -gt 0 ]; do
+    case $1 in
+        -site|--site) site=$2; verify_not_null $site; shift 2;;
+        -param*|--param*) params=$2; verify_not_null $params; shift 2;;
+        *) echo "Do not recognize command line option: $1" 1>&2; usage;;
+    esac
+done
 
-if [ $? -eq 0 ]; then
-   rm -rf run???
-   rm finder.out
+if [ -z "$site" ] || [ ! -f "$params" ]; then
+    usage
 fi
+
+params=$( readlink -f $params )
+utils=$( readlink -f ../../utils )
+PATH=$PATH:$utils:$PWD
+
+swift -tc.file tc.data -sites.file ${site}.xml -config swift.properties rescaler.ensemble.swift -params=$params
+cleanup $?
