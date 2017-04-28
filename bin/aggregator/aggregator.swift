@@ -4,8 +4,11 @@ app (file o) get_inputs (string params) {
    inputs params stdout = @o;
 }
 
-app (file o) aggregator (string indir, string crop, string lufile, string aggfile, string gsfile, string outfile) {
-   aggregator "-i" indir "-c" crop "-l" lufile "-a" aggfile "-g" gsfile "-o" outfile stdout = @o;
+app aggregator (string indir, string crop, string lufile, string aggfile, string gsfile, string co2,
+                string temperature, string precip, string nitrogen, string adaptation, string outfile) {
+   aggregator "--indir" indir "--crop" crop "--lufile" lufile "--agg" aggfile "--gsfile" gsfile "--co2" co2
+              "--temperature" temperature "--precipitation" precip "--nitrogen" nitrogen "--adaptation" adaptation
+              "--outfile" outfile;
 }
 
 type Inputs {
@@ -14,6 +17,11 @@ type Inputs {
     string lufile;
     string agg;
     string gsfile;
+    string co2;
+    string temperature;
+    string precip;
+    string nitrogen;
+    string adaptation;
     string outfile;
 }
 
@@ -23,6 +31,5 @@ ff = get_inputs(params);
 Inputs input[] = readData(ff);
 
 foreach i, idx in input {
-    file logfile <single_file_mapper; file = strcat("logs/log.", idx + 1, ".txt")>;
-    logfile = aggregator(i.indir, i.crop, i.lufile, i.agg, i.gsfile, i.outfile);
+    aggregator(i.indir, i.crop, i.lufile, i.agg, i.gsfile, i.co2, i.temperature, i.precip, i.nitrogen, i.adaptation, i.outfile);
 }

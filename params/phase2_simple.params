@@ -5,10 +5,19 @@ aggr_mask_directory: /project/ggcmi/phase1.final/processed.simple/masks/aggr
 growing_season_directory: /project/ggcmi/AgMIP.input/other.inputs/agmip_growing_season.1.23.processed
 
 # Location of model inputs
-model_directory: /project/ggcmi/phase1.final
+model_directory: /project/ggcmi/AgMIP.output
+
+# Possible adaptations
+adaptations:
+    - A0
+    - A1
+
+# Variable to aggregate
+variables:
+    - yield
 
 # Processed directories
-agg_directory: /project/ggcmi/phase1.final/processed.simple/aggs
+agg_directory: /project/ggcmi/AgMIP.output/processed.phase2/aggs
 biascorr_directory: /project/ggcmi/phase1.final/processed.simple/biascorr
 multimetrics_directory: /project/ggcmi/phase1.final/processed.simple/multimetrics
 modelensemble_directory: /project/ggcmi/phase1.final/processed.simple/modelensemble
@@ -150,3 +159,40 @@ rescaler:
     mp: "true"
     cr: mean-scale
     scen: default
+
+co2_levels:
+    - C360
+    - C510
+    - C660
+    - C810
+
+temperature_levels:
+    - T-1
+    - T0
+    - T1
+    - T2
+    - T3
+    - T4
+    - T6
+
+precipitation_levels:
+    - W-50
+    - W-30
+    - W-20
+    - W-10
+    - W0
+    - W10
+    - W20
+    - W30
+    - Winf
+
+nitrogen_levels:
+    - N10
+    - N60
+    - N200
+    - NNA
+
+adaptation_levels:
+    - A0
+    - A1
+

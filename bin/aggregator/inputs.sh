@@ -24,45 +24,59 @@ crops_short=( $( get_param crops_short ) )
 models=( $( get_param models ) )
 climates=( $( get_param climates ) )
 climate_years=( $( get_param climate_years ) )
+variables=$( get_param variables )
+adaptation_levels=$( get_param adaptation_levels )
+co2_levels=$( get_param co2_levels )
+temperature_levels=$( get_param temperature_levels )
+precipitation_levels=$( get_param precipitation_levels )
+nitrogen_levels=$( get_param nitrogen_levels )
 
 # Header
-echo indir crop lufile agg gsfile outfile
+echo indir crop lufile agg gsfile co2 temperature precip nitrogen adaptation outfile
 
 for model in ${models[@]}; do
-   for ((w = 0; w < ${#climates[@]}; w++)); do
-      weath=${climates[$w]}
-      wyear=${climate_years[$w]}
-      for ((c = 0; c < ${#crops_long[@]}; c++)); do
-         croplong=${crops_long[$c]}
-         cropshort=${crops_short[$c]}
-         indir=$model_directory/$model/$weath/$croplong
-         if [ ! -d $indir ] || [ $(ls $indir | wc -l) = 0 ]; then
-            continue
-         fi
-         gsfile=$growing_season_directory/${cropshort}_growing_season_dates.nc4
-         for aggmask in ${aggregation_levels[@]}; do
-            aggmaskfile=$aggr_mask_directory/$aggmask.mask.nc4
-            for area in ${areas[@]}; do
-               if [ $area = mirca ]; then
-                  wfile=$weight_directory/$croplong.nc4
-               elif [ $area = ray ]; then
-                  wfile=$ray_directory/$croplong.$area.nc4
-               else
-                  wfile=$weight_directory/$croplong.$area.nc4
-               fi
-               if [ ! -f $wfile ]; then
-                  continue
-               fi
-               if [ $area = mirca ] || [ $area = iizumi ] || [ $area = spam ]; then
-                  outdir=$agg_directory/$aggmask/fixed_${area}_mask
-               else
-                  outdir=$agg_directory/$aggmask/dynamic_${area}_mask
-               fi
-               ofile=$outdir/${model,,}_${weath,,}_hist_${cropshort}_annual_${wyear}.nc4
-               mkdir -p $outdir
-               echo $indir $cropshort $wfile $aggmaskfile:$aggmask $gsfile $ofile
+    indir=$model_directory/$model/phase2
+    if [ ! -d $indir ] || [ $(ls $indir | wc -l) = 0 ]; then
+        continue
+    fi
+    for ((c = 0; c < ${#crops_long[@]}; c++)); do
+        croplong=${crops_long[$c]}
+        cropshort=${crops_short[$c]}
+        gsfile=$growing_season_directory/${cropshort}_growing_season_dates.nc4
+        for variable in $variables; do
+            for aggmask in ${aggregation_levels[@]}; do
+                aggmaskfile=$aggr_mask_directory/$aggmask.mask.nc4
+                for area in ${areas[@]}; do
+                    if [ $area = mirca ]; then
+                        wfile=$weight_directory/$croplong.nc4
+                    elif [ $area = ray ]; then
+                        wfile=$ray_directory/$croplong.$area.nc4
+                    else
+                        wfile=$weight_directory/$croplong.$area.nc4
+                    fi
+                    if [ ! -f $wfile ]; then
+                        continue
+                    fi
+                    if [ $area = mirca ] || [ $area = iizumi ] || [ $area = spam ]; then
+                        outdir=$agg_directory/$aggmask/fixed_${area}_mask
+                    else
+                        outdir=$agg_directory/$aggmask/dynamic_${area}_mask
+                    fi
+                    mkdir -p $outdir
+	            for co2 in $co2_levels; do
+                        for temperature in $temperature_levels; do
+                            for precip in $precipitation_levels; do
+                                for nitrogen in $nitrogen_levels; do
+                                    for adaptation in $adaptation_levels; do
+                                        ofile=$outdir/${model,,}_${cropshort}_${co2}_${temperature}_${precip}_${nitrogen}_${adaptation}.nc4
+                                        echo $indir $cropshort $wfile $aggmaskfile:$aggmask $gsfile $co2 $temperature $precip $nitrogen $adaptation $ofile
+                                    done
+                                done
+                            done
+                        done
+                    done
+                done
             done
-         done
-      done
-   done
+        done
+    done
 done
