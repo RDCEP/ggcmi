@@ -1,2 +1,4 @@
 midway aggregator aggregator_wrapper.sh
 midway inputs inputs.sh
+midway merge merge.py
+midway inputs_merge inputs_merge.sh

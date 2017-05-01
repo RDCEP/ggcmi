@@ -43,39 +43,32 @@ areas:
 # Long names of relevant crops
 crops_long:
     - maize
-    - wheat
-    - rice
     - soy
-    - sorghum
-    - millet
+    - spring_wheat
+    - winter_wheat
+    - rice
 
 # Short names of relevant crops. Must match long names exactly, in same order
 crops_short:
     - mai
-    - whe
-    - ric
     - soy
-    - sor
-    - mil
+    - swh
+    - wwh
+    - ric
 
 # Full list of models. Case sensitive, must match exactly the directory names.
 models:
-    - pDSSAT
-    - pAPSIM
-    - LPJ-GUESS
-    - LPJmL
-    - PEGASUS
-    - GEPIC
-    - EPIC-IIASA
-    - EPIC-Boku
-    - EPIC-test
-    - CGMS-WOFOST
-    - CLM-Crop
+    - CARAIB
     - EPIC-TAMU
-    - ORCHIDEE
+    - GEPIC
+    - JULES
+    - LPJmL
     - ORCHIDEE-crop
+    - pDSSAT
     - PEPIC
+    - PROMET
     - PRYSBI2
+    - SIMPLACE
 
 # Climate names used in model files
 climates:
