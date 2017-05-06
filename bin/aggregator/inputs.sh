@@ -30,6 +30,7 @@ co2_levels=$( get_param co2_levels )
 temperature_levels=$( get_param temperature_levels )
 precipitation_levels=$( get_param precipitation_levels )
 nitrogen_levels=$( get_param nitrogen_levels )
+irrigation_levels=$( get_param irrigation_levels )
 
 # Header
 echo indir crop lufile agg gsfile co2 temperature precip nitrogen adaptation outfile
@@ -57,18 +58,24 @@ for model in ${models[@]}; do
                     if [ ! -f $wfile ]; then
                         continue
                     fi
-                    if [ $area = mirca ] || [ $area = iizumi ] || [ $area = spam ]; then
-                        outdir=$agg_directory/$aggmask/fixed_${area}_mask
-                    else
-                        outdir=$agg_directory/$aggmask/dynamic_${area}_mask
-                    fi
-                    mkdir -p $outdir
+                    for irrigation in $irrigation_levels; do
+                        outdir=$agg_directory/$aggmask/fixed_${area}-${irrigation}_mask
+                        mkdir -p $outdir
+                    done
 	            for co2 in $co2_levels; do
                         for temperature in $temperature_levels; do
                             for precip in $precipitation_levels; do
                                 for nitrogen in $nitrogen_levels; do
                                     for adaptation in $adaptation_levels; do
-                                        ofile=$outdir/${model,,}_${cropshort}_${co2}_${temperature}_${precip}_${nitrogen}_${adaptation}.nc4
+                                        ofile=""
+                                        for irrigation in $irrigation_levels; do
+					    outdir=$agg_directory/$aggmask/fixed_${area}-${irrigation}_mask
+                                            if [ -z "$ofile" ]; then
+                                                ofile="$outdir/${model,,}_${cropshort}_${co2}_${temperature}_${precip}_${nitrogen}_${adaptation}.nc4"
+					    else
+                                                ofile="$ofile,$outdir/${model,,}_${cropshort}_${co2}_${temperature}_${precip}_${nitrogen}_${adaptation}.nc4"
+                                            fi
+                                        done
                                         echo $indir $cropshort $wfile $aggmaskfile:$aggmask $gsfile $co2 $temperature $precip $nitrogen $adaptation $ofile
                                     done
                                 done

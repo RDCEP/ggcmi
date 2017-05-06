@@ -17,7 +17,8 @@ parser.add_argument("--output", required=True, help="Output file")
 parser.add_argument("--adaptation", required=True, help="Adaptation level (A0 or A1)")
 parser.add_argument("--carbon_levels", default="C360,C510,C660,C810", help="Comma separated list of carbon levels")
 parser.add_argument("--temp_levels", default="T-1,T0,T1,T2,T3,T4,T6", help="Comma separated list of temperature levels")
-parser.add_argument("--water_levels", default="W-50,W-30,W-20,W-10,W0,W10,W20,W30,Winf", help="Comma separated list of water levels")
+parser.add_argument("--water_levels", default="W-50,W-30,W-20,W-10,W0,W10,W20,W30,Winf",
+                    help="Comma separated list of water levels")
 parser.add_argument("--nitrogen_levels", default="N10,N60,N200,NNA", help="Comma separated list of nitrogen levels")
 args = parser.parse_args()
 
@@ -48,7 +49,7 @@ with Dataset(files[0]) as sample:
         dim_names.append(dimension)
         dim_sizes.append(sample.dimensions[dimension].size)
     for variable in sample.variables:
-        if variable not in ["global", "gadm0", "time", "scen", "irr"]:
+        if variable not in ["global", "gadm0", "time"]:
             variables.append(str(variable))
 
 # Use sample data as output
@@ -58,10 +59,10 @@ new_variables = list(set(variables) - set(variables_to_delete))
 os.system("ncks -h -O -x -v %s %s %s.tmp" % (",".join(variables_to_delete), output, output))
 shutil.move("%s.tmp" % output, output)
 
-# gadm0/global, time, scen, irr, c, t, w, n
+# gadm0/global, time, c, t, w, n
 data = dict()
 for v in variables:
-    data[v] = numpy.full((dim_sizes[0], dim_sizes[1], dim_sizes[2], dim_sizes[3], len(carbon_levels), len(temp_levels),
+    data[v] = numpy.full((dim_sizes[0], dim_sizes[1], len(carbon_levels), len(temp_levels),
                           len(water_levels), len(nitrogen_levels)), fill_value)
 
 for filename in files:
@@ -79,7 +80,7 @@ for filename in files:
     nc = Dataset(filename)
     for v in variables:
         try:
-            data[v][:, :, :, :, cidx, tidx, widx, nidx] = nc.variables[v][:]
+            data[v][:, :, cidx, tidx, widx, nidx] = nc.variables[v][:]
         except KeyError:
             print "Warning: File %s is missing variable %s" % (filename, v)
 
@@ -111,8 +112,8 @@ with Dataset(output, "a") as o:
     nvar[:] = numpy.arange(len(nitrogen_levels))
 
     for v in variables:
-        newvar = o.createVariable(v, "f4", (dim_names[0], dim_names[1], dim_names[2], dim_names[3],
-                                  "c", "t", "w", "n"), zlib=True, complevel=9, fill_value=fill_value)
+        newvar = o.createVariable(v, "f4", (dim_names[0], dim_names[1], "c", "t", "w", "n"),
+                                  zlib=True, complevel=9, fill_value=fill_value)
         newvar[:] = data[v][:]
 
 # Remove intermediate files

@@ -18,6 +18,7 @@ if [ -z "$site" ] || [ ! -f "$params" ]; then
 fi
 
 export PATH=$PATH:$PWD
+export PYTHONPATH=$PYTHONPATH:/project/joshuaelliott/ggcmi2/utils
 params=$( readlink -f $params )
 swift -sites.file ${site}-merge.xml -tc.file tc.data merge.swift -params=$params
 cleanup $?

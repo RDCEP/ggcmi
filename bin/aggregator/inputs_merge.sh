@@ -16,6 +16,7 @@ agg_levels=$( get_param aggregation_levels )
 models=$( get_param models )
 crops_short=$( get_param crops_short )
 adaptation_levels=$( get_param adaptation_levels )
+irrigation_levels=$( get_param irrigation_levels )
 areas=$( get_param areas )
 clevs=$( get_param co2_levels | sed s/' '/,/g )
 tlevs=$( get_param temperature_levels | sed s/' '/,/g )
@@ -26,19 +27,20 @@ nlevs=$( get_param nitrogen_levels | sed s/' '/,/g )
 echo indir model crop clevs tlevs wlevs nlevs adaptation output
 
 for agg_level in $agg_levels; do
-    for area in $areas; do
-        area=$( area_to_long $area )
-        for model in $models; do
-            model=$( echo $model | tr '[:upper:]' '[:lower:]' )
-            for crop in $crops_short; do
-                for adaptation in $adaptation_levels; do
-                    indir=$agg_directory/$agg_level/$area
-                    if [ ! -d $indir ] || [ $( ls $indir | wc -l ) = 0 ]; then
-                        echo Directory $indir empty or does not exist
-                        continue
-                    fi
-		    output=$agg_directory/$agg_level/$area/${model}_${crop}_${adaptation}.nc4
-                    echo $indir $model $crop $clevs $tlevs $wlevs $nlevs $adaptation $output
+    for irrigation in $irrigation_levels; do
+        for area in $areas; do
+            area=$( area_to_long $area $irrigation )
+            for model in $models; do
+                model=$( echo $model | tr '[:upper:]' '[:lower:]' )
+                for crop in $crops_short; do
+                    for adaptation in $adaptation_levels; do
+                        indir=$agg_directory/$agg_level/${area}
+                        if [ ! -d $indir ] || [ $( ls $indir | wc -l ) = 0 ]; then
+                            continue
+                        fi
+            	        output=$indir/${model}_${crop}_${adaptation}.nc4
+                        echo $indir $model $crop $clevs $tlevs $wlevs $nlevs $adaptation $output
+                    done
                 done
             done
         done

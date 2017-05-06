@@ -8,7 +8,7 @@ app aggregator (string indir, string crop, string lufile, string aggfile, string
                 string temperature, string precip, string nitrogen, string adaptation, string outfile) {
    aggregator "--indir" indir "--crop" crop "--lufile" lufile "--agg" aggfile "--gsfile" gsfile "--co2" co2
               "--temperature" temperature "--precipitation" precip "--nitrogen" nitrogen "--adaptation" adaptation
-              "--outfile" outfile;
+              "--outfiles" outfile;
 }
 
 type Inputs {

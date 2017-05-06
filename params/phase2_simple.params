@@ -189,3 +189,7 @@ adaptation_levels:
     - A0
     - A1
 
+irrigation_levels:
+    - rf
+    - ir
+    - sum

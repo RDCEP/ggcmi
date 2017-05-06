@@ -15,9 +15,9 @@ from numpy import zeros, ones, mod, where, isnan, logical_not, logical_and, aran
 from warnings import filterwarnings
 
 
-def findfile(filelist, scenario, variable):
+def findfile(filelist, variable):
     for ncfile in filelist:
-        if '_%s_%s_' % (scenario, variable) in ncfile:
+        if '_%s_' % variable in ncfile:
             return ncfile
     return None
 
@@ -43,7 +43,7 @@ parser.add_argument("--crop", required=True, help="Crop")
 parser.add_argument("--gsfile", required=True, help="Growing season file")
 parser.add_argument("--indir", required=True, help="Input directory")
 parser.add_argument("--lufile", required=True, help="Landuse weight file")
-parser.add_argument("--outfile", required=True, help="Output file")
+parser.add_argument("--outfiles", required=True, help="List of output file")
 parser.add_argument("--nitrogen", required=True, help="Nitrogen level (N10, N60, N200)")
 parser.add_argument("--precipitation", required=True,
                     help="Precipitation level (W-50, W-30, W-20, W-10, W0, W10, W20, W30, Winf)")
@@ -59,19 +59,14 @@ gsfile = args.gsfile
 indir = args.indir
 lufile = args.lufile
 nitrogen = args.nitrogen
-outfile = args.outfile
+outfiles = args.outfiles.split(',')
 precipitation = args.precipitation
 temperature = args.temperature
+
 crop_names = {'mai': 'maize', 'soy': 'soy', 'swh': 'spring_wheat', 'wwh': 'winter_wheat', 'ric': 'rice'}
 crop_long = crop_names[crop]
-
+irr_levels = ["firr", "noirr"]
 filterwarnings('ignore')
-
-# Winf uses irrigated, everything else uses rainfed
-if precipitation == "Winf":
-    irrigation = "firr"
-else:
-    irrigation = "noirr"
 
 # some constants
 yieldthr1 = 0.1
@@ -81,7 +76,8 @@ yearthr = 1
 files = glob(os.path.join(indir, crop_long, adaptation, "*/*%s_%s_%s_%s*[!old]" %
                           (co2, temperature, precipitation, nitrogen)))
 if not files:
-    sys.exit("No files found")
+    print "No files found"
+    sys.exit(0)
 
 # extract time and units from first filename
 y1, y2 = [int(y) for y in findall(r'\d+', splitext(files[0])[0])[-2:]]
@@ -138,47 +134,33 @@ with Dataset(gsfile) as f:
 
 # get variables and scenarios
 variables = []
-scens = []
-scens_full = []
 
 for i in range(len(files)):
     file_split = files[i].split('_')
     variables.append(file_split[3])
-    scens.append(file_split[2])
-    scens_full.append(file_split[2] + '_' + irrigation)
 
 variables = list(set(variables))
-scens = list(set(scens))
-scens_full = list(set(scens_full))
-
 variables.sort()
-scens.sort()
-scens_full.sort()
 
 # number of variables, times, scenarios, aggregation levels
 nvariables = len(variables)
 ntimes = len(time)
-nscens = len(scens)
 naudata = len(audata)
+nirrs = len(irr_levels) + 1
 
 # preallocate final averages and areas
-averages = masked_array(zeros((nvariables, naudata, ntimes, nscens, 3)),
-                        mask=ones((nvariables, naudata, ntimes, nscens, 3)))
-areas = masked_array(zeros((naudata, ntimes, nscens, 3)), mask=ones((naudata, ntimes, nscens, 3)))
+averages = masked_array(zeros((nvariables, naudata, ntimes, nirrs)),
+                        mask=ones((nvariables, naudata, ntimes, nirrs)))
+areas = masked_array(zeros((naudata, ntimes, 3)), mask=ones((naudata, ntimes, nirrs)))
 
 # aggregator object
 avobj = MeanAverager()
-
 vunits = [''] * nvariables
-for i in range(len(scens)):
-    scen = scens[i]
 
-    # find scenario and irr
-    sidx = scens.index(scen)
-    iidx = int(irrigation != 'firr')
+for iidx in range(len(irr_levels)):
 
     # Load planting file
-    plantingfile = findfile(files, scen, 'plant-day')
+    plantingfile = findfile(files, 'plant-day')
     if plantingfile:
         with Dataset(plantingfile) as f:
             planting_date = f.variables['plant-day_' + crop][0]
@@ -186,7 +168,7 @@ for i in range(len(scens)):
         planting_date = pdate[iidx]
 
     # load harvest file
-    harvestfile = findfile(files, scen, 'maty-day')
+    harvestfile = findfile(files, 'maty-day')
     if harvestfile:
         with Dataset(harvestfile) as f:
             harvest_date = f.variables['maty-day_' + crop][0]
@@ -198,7 +180,7 @@ for i in range(len(scens)):
     harvest_date[harvest_date == 0] = 1
 
     # load yield file
-    yieldfile = findfile(files, scen, 'yield')
+    yieldfile = findfile(files, 'yield')
 
     if not yieldfile:
         yvar = masked_array(zeros((ntimes,) + planting_date.shape), mask=zeros((ntimes,) + planting_date.shape))
@@ -213,11 +195,11 @@ for i in range(len(scens)):
 
     # compute areas
     print ymsk.sum(), ymsk.shape, adata.shape, weights[iidx].shape
-    areas[:, :, sidx, iidx] = avobj.areas(yvar, adata, lats, weights[iidx], calc_area)
+    areas[:, :, iidx] = avobj.areas(yvar, adata, lats, weights[iidx], calc_area)
 
     for j in range(nvariables):
-        varfile = findfile(files, scen, variables[j])
-        print "file %s" % varfile
+        varfile = findfile(files, variables[j])
+        print "Reading %s" % varfile
         if not varfile:
             continue
         with Dataset(varfile) as f:
@@ -225,34 +207,35 @@ for i in range(len(scens)):
             if not i:
                 vunits[j] = var.units if 'units' in var.ncattrs() else ''
             var = var[:]
-        var[isnan(var)] = 0.                   # change NaNs to zero
+        var[isnan(var)] = 0.                                        # change NaNs to zero
         var = shiftdata(var, planting_date, harvest_date, yearthr)  # shift data
-        var = var[yrsinrange]                  # restrict to overlapping years
+        var = var[yrsinrange]                                       # restrict to overlapping years
 
         # aggregate
         print "sum is %s" % avobj.sum(var, adata, lats, weights[iidx], calc_area, ymsk)
-        averages[j, :, :, sidx, iidx] = avobj.sum(var, adata, lats, weights[iidx], calc_area, ymsk)
-        averages[j, :, :, sidx, iidx] /= areas[:, :, sidx, iidx]
+        averages[j, :, :, iidx] = avobj.sum(var, adata, lats, weights[iidx], calc_area, ymsk)
+        averages[j, :, :, iidx] /= areas[:, :, iidx]
 
 # sum areas
-area1, area2 = areas[:, :, :, 0], areas[:, :, :, 1]
+area1, area2 = areas[:, :, 0], areas[:, :, 1]
 area1[logical_and(area1.mask, ~area2.mask)] = 0.
 area2[logical_and(area2.mask, ~area1.mask)] = 0.
-areas[:, :, :, 2] = area1 + area2
+areas[:, :, 2] = area1 + area2
 
 # create output file
-fout = AggregationFile(outfile, time, tunits, scens, audata, aname, aunits, alongname)
+for iidx in range(nirrs):
+    print "Writing %s" % outfiles[iidx]
+    fout = AggregationFile(outfiles[iidx], time, tunits, audata, aname, aunits, alongname)
 
-# add area
-fout.append('area_' + aname, areas, (aname, 'time', 'scen', 'irr'), 'hectares', aname + ' harvested area')
+    # add area
+    fout.append('area_' + aname, areas[:, :, iidx], (aname, 'time'), 'hectares', aname + ' harvested area')
 
-# add variables
-for i in range(nvariables):
-    # average
-    av1 = areas[:, :, :, 0] * averages[i, :, :, :, 0]
-    av2 = areas[:, :, :, 1] * averages[i, :, :, :, 1]
-    av1[logical_and(av1.mask, ~av2.mask)] = 0.
-    av2[logical_and(av2.mask, ~av1.mask)] = 0.
-    averages[i, :, :, :, 2] = (av1 + av2) / areas[:, :, :, 2]
-    fout.append(variables[i] + '_' + aname, averages[i], (aname, 'time', 'scen', 'irr'), vunits[i],
-                'average ' + aname + ' ' + variables[i])
+    # add variables
+    for i in range(nvariables):
+        av1 = areas[:, :, 0] * averages[i, :, :, 0]
+        av2 = areas[:, :, 1] * averages[i, :, :, 1]
+        av1[logical_and(av1.mask, ~av2.mask)] = 0.
+        av2[logical_and(av2.mask, ~av1.mask)] = 0.
+        averages[i, :, :, 2] = (av1 + av2) / areas[:, :, 2]
+        fout.append(variables[i] + '_' + aname, averages[i, :, :, iidx], (aname, 'time'), vunits[i],
+                    'average ' + aname + ' ' + variables[i])
