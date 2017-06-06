@@ -1,8 +1,12 @@
+# (C) 2014-2017 Potsdam Institute for Climate Impact Research (PIK),
+# written by Christoph Mueller & Jannes Breier,  PIK
+# cmueller@pik-potsdam.de
+# Licensed under GNU AGPL Version 3 <LICENSE.txt in ggcmi directory>
+
 ##########################################################
 # Script for plotting maps of correlation between        #
 # reference data and model output for GGCMI phase 1      #
 #                                                        #
-# By Jannes Breier and Christoph Mueller                 #
 # cmueller@pik-potsdam.de                                #
 ##########################################################
 

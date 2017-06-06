@@ -1,3 +1,8 @@
+# (C) 2014-2017 Potsdam Institute for Climate Impact Research (PIK),
+# written by Christoph Mueller, PIK
+# cmueller@pik-potsdam.de
+# Licensed under GNU AGPL Version 3 <LICENSE.txt in ggcmi directory>
+
 rm(list=ls(all=TRUE))
 options(warn=1)
 

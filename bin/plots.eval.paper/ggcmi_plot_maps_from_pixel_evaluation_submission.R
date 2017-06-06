@@ -1,3 +1,8 @@
+# (C) 2014-2017 Potsdam Institute for Climate Impact Research (PIK),
+# written by Christoph Mueller, PIK
+# cmueller@pik-potsdam.de
+# Licensed under GNU AGPL Version 3 <LICENSE.txt in ggcmi directory>
+
 ##########################################################
 # script to plot maps from 
 # correlation_plots_JB_shifted_ts.R

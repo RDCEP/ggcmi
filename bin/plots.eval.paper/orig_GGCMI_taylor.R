@@ -1,3 +1,8 @@
+# (C) 2014-2017 Potsdam Institute for Climate Impact Research (PIK),
+# written by Christoph Mueller, PIK
+# cmueller@pik-potsdam.de
+# Licensed under GNU AGPL Version 3 <LICENSE.txt in ggcmi directory>
+
 #require(plotrix) # not needed as I'm using a tweaked copy of the taylor.diagram() function
 rm(list=ls(all=TRUE))
 
@@ -8,8 +13,6 @@ require(ncdf4)
 require(weights)
 
 # script to plot Taylor diagrams for GGCMI phase 1. 
-# written by Christoph Mueller, PIK
-# cmueller@pik-potsdam.de
 # I'm using a slightly modified version of taylor.diagram() of the plotrix package
 # to avoid comparison with NA values and to allow for weighted correlation analysis.
 # For that I've copied the source code of taylor.diagram to GGCMI_taylor_function.R and modified it accordingly.
