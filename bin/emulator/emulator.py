@@ -337,6 +337,7 @@ def main():
             reglist = list(set(regions[lev].tolist()))
             for regidx, reg in enumerate(reglist):
                 sys.stdout.write('\rAggregating %s region %d/%d' % (lev, regidx+1, len(reglist)))
+                sys.stdout.flush()
                 tmpfile = os.path.join(tempdir, 'tempfile.%s.%09d' % (lev, reg))
                 aggregate(merged, tmpfile, out_var, lev, reg, 'area', tempdir, devnull)
             print
