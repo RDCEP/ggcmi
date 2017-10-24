@@ -1,32 +1,28 @@
 #!/usr/bin/env python
 
-# add paths
-import os, sys
-for p in os.environ['PATH'].split(':'): sys.path.append(p)
-
-# ignore all warnings
+import sys
+from argparse import ArgumentParser
+from netCDF4 import Dataset
+from os import listdir
+from re import findall
+from os.path import sep, isfile, basename
+from numpy.ma import masked_array, masked_where
+from numpy import zeros, ones, mod, where, isnan, logical_not, logical_and, arange
+from aggmaskloader import AggMaskLoader
+from averager import MeanAverager
+from filespecs import AggregationFile
 import warnings
 warnings.filterwarnings('ignore')
 
-# import modules
-from re import findall
-from os import listdir
-from os.path import splitext
-from optparse import OptionParser
-from netCDF4 import Dataset as nc
-from averager import MeanAverager
-from filespecs import AggregationFile
-from aggmaskloader import AggMaskLoader
-from os.path import sep, isfile, basename
-from numpy.ma import masked_array, masked_where
-from numpy import zeros, ones, mod, where, isnan, logical_not, logical_and, append, newaxis, arange
 
 def filterfiles(listing):
     files = []
     for l in listing:
-        if isfile(l) and not l.endswith('.old'): # skip old files
+        # skip old files
+        if isfile(l) and not l.endswith('.old'):
             files.append(l)
     return files
+
 
 def findfile(files, scen_irr, var):
     for f in files:
@@ -34,227 +30,243 @@ def findfile(files, scen_irr, var):
             return f
     return []
 
-def shiftdata(data, pdate, hdate, yearthr = 1):
+
+def shiftdata(data, pdate, hdate, yearthr=1):
     latidx, lonidx = where(logical_and(pdate >= hdate, hdate >= yearthr))
     datac = data.copy()
     shiftd = datac[:, latidx, lonidx]
-    shiftd[1 :] = shiftd[: -1] # shift data down one
+    # shift data down one
+    shiftd[1:] = shiftd[: -1]
     shiftd[0].mask = True
     datac[:, latidx, lonidx] = shiftd
     return datac
 
-# parse inputs
-parser = OptionParser()
-parser.add_option("-i", "--indir", dest = "indir", default = "pDSSAT/AgCFSR/maize", type = "string",
-                  help = "Input directory")
-parser.add_option("-c", "--crop", dest = "crop", default = "mai", type = "string",
-                  help = "Crop")
-parser.add_option("-l", "--lufile", dest = "lufile", default = "maize.nc4", type = "string",
-                  help = "Landuse weight file", metavar = "FILE")
-parser.add_option("-a", "--agg", dest = "agg", default = "", type = "string",
-                  help = "Aggregation mask file:var")
-parser.add_option("-g", "--gsfile", dest = "gsfile", default = "maize_growing_season_dates.nc4", type = "string",
-                  help = "Growing season file", metavar = "FILE")
-parser.add_option("--calc_area", action = "store_true", dest = "calcarea", default = False,
-                  help = "Flag to indicate weights are fractions (optional)")
-parser.add_option("-o", "--outfile", dest = "outfile", default = "", type = "string",
-                  help = "Output file", metavar = "FILE")
-options, args = parser.parse_args()
 
-indir    = options.indir
-crop     = options.crop
-lufile   = options.lufile
-agg      = options.agg
-gsfile   = options.gsfile
-calcarea = options.calcarea
-outfile  = options.outfile
+def main():
+    parser = ArgumentParser()
+    parser.add_argument("-i", "--indir", default="pDSSAT/AgCFSR/maize", help="Input directory")
+    parser.add_argument("-c", "--crop", default="mai", help="Crop")
+    parser.add_argument("-l", "--lufile", default="maize.nc4", help="Landuse weight file")
+    parser.add_argument("-a", "--agg", default="", help="Aggregation mask file:var")
+    parser.add_argument("-g", "--gsfile", default="maize_growing_season_dates.nc4", help="Growing season file")
+    parser.add_argument("--calc_area", action="store_true", dest="calcarea", default=False,
+                        help="Flag to indicate weights are fractions (optional)")
+    parser.add_argument("-o", "--outfile", default="", help="Output file")
+    parser.add_argument("-y", "--year_start", type=int, required=True, help="Start year")
+    args = parser.parse_args()
 
-# some constants
-yieldthr1, yieldthr2, yearthr = 0.1, 30, 1
+    indir = args.indir
+    crop = args.crop
+    lufile = args.lufile
+    agg = args.agg
+    gsfile = args.gsfile
+    calcarea = args.calcarea
+    outfile = args.outfile
+    year_start = args.year_start
 
-# files in directory
-listing = [indir + sep + l for l in listdir(indir)]
-files   = filterfiles(listing)
-files   = [basename(l) for l in files]
-files   = [f for f in files if '_' + crop + '_' in f]
+    yieldthr1 = 0.1
+    yieldthr2 = 30
+    yearthr = 1
 
-if not len(files):
-    print 'No files found. Skipping directory . . .'
-    exit(0)
+    # files in directory
+    listing = [indir + sep + l for l in listdir(indir)]
+    files = filterfiles(listing)
+    files = [basename(l) for l in files]
+    files = [f for f in files if '_' + crop + '_' in f]
 
-# extract time and units from first filename
-y1, y2 = [int(y) for y in findall(r'\d+', splitext(files[0])[0])[-2 :]]
-years  = arange(y1, y2 + 1)
-tunits = 'growing seasons since %d-01-01 00:00:00' % y1
+    if not len(files):
+        sys.exit('No files found. Skipping directory . . .')
 
-# check time against time in file
-with nc(indir + sep + files[0]) as f:
-    tvar = f.variables['time']
-    if len(tvar) != len(years):
+    # check time against time in file
+    with Dataset(indir + sep + files[0]) as f:
+        tvar = f.variables['time']
         tunits = tvar.units
-        years  = tvar[:] + int(findall(r'\d+', tunits)[0]) - 1
-        y1, y2 = years.min(), years.max()
+        years = tvar[:] + int(findall(r'\d+', tunits)[0]) - 1
+        y1 = years.min()
+        y2 = years.max()
+        # If the first year in the data is not the first year of the climate data, don't process
+        if y1 != year_start:
+            print "Data/Climate time mismatch in %s" % files[0]
+            sys.exit(0)
 
-# load landuse mask
-with nc(lufile) as f:
-    lats, lons = f.variables['lat'][:], f.variables['lon'][:]
+    # load landuse mask
+    with Dataset(lufile) as f:
+        lats, lons = f.variables['lat'][:], f.variables['lon'][:]
 
-    wir = f.variables['irrigated'][:]
-    wrf = f.variables['rainfed'][:]
+        wir = f.variables['irrigated'][:]
+        wrf = f.variables['rainfed'][:]
 
-    weights    = masked_array(zeros((2,) + wir.shape), mask = ones((2,) + wir.shape))
-    weights[0] = wir
-    weights[1] = wrf
+        weights = masked_array(zeros((2,) + wir.shape), mask=ones((2,) + wir.shape))
+        weights[0] = wir
+        weights[1] = wrf
 
-    if 'time' in f.variables:
-        ltime   = f.variables['time'][:]
-        ltunits = f.variables['time'].units
-        ltime  += int(findall(r'\d+', ltunits)[0])
-        weights = weights[:, logical_and(ltime >= y1, ltime <= y2)] # restrict range
-    else:
-        ltime = years.copy()
+        if 'time' in f.variables:
+            ltime = f.variables['time'][:]
+            ltunits = f.variables['time'].units
+            ltime += int(findall(r'\d+', ltunits)[0])
+            # restrict range
+            weights = weights[:, logical_and(ltime >= y1, ltime <= y2)]
+        else:
+            ltime = years.copy()
 
-# restrict to overlapping years
-yrsinrange = logical_and(years >= min(ltime), years <= max(ltime))
-years      = years[yrsinrange]
-t0         = min(years) - y1 + 1
-time       = arange(t0, t0 + len(years))
+    # restrict to overlapping years
+    yrsinrange = logical_and(years >= min(ltime), years <= max(ltime))
+    years = years[yrsinrange]
+    t0 = min(years) - y1 + 1
+    time = arange(t0, t0 + len(years))
 
-# load aggregation mask
-afile, avar = [a.strip() for a in agg.split(':')]
-aggloader   = AggMaskLoader(afile, avar)
-adata       = aggloader.data()[0]
-audata      = aggloader.udata()[0]
-aname       = aggloader.names()[0]
-aunits      = aggloader.units()[0]
-alongname   = aggloader.longnames()[0]
+    # load aggregation mask
+    afile, avar = [a.strip() for a in agg.split(':')]
+    aggloader = AggMaskLoader(afile, avar)
+    adata = aggloader.data()[0]
+    audata = aggloader.udata()[0]
+    aname = aggloader.names()[0]
+    aunits = aggloader.units()[0]
+    alongname = aggloader.longnames()[0]
 
-# load growing season file
-with nc(gsfile) as f:
-    pdate = f.variables['planting_day'][:]
-    hdate = f.variables['growing_season_length'][:]
+    # load growing season file
+    with Dataset(gsfile) as f:
+        pdate = f.variables['planting_day'][:]
+        hdate = f.variables['growing_season_length'][:]
 
-# get variables and scenarios
-variables = []; scens = []; scens_full = []
-for i in range(len(files)):
-    fs = files[i].split('_')
+    # get variables and scenarios
+    variables = []
+    scens = []
+    scens_full = []
+    for i in range(len(files)):
+        fs = files[i].split('_')
 
-    if 'noirr' in fs:
-        fs.remove('noirr')
-        ir = 'noirr'
-    else:
-        fs.remove('firr')
-        ir = 'firr'
+        if 'noirr' in fs:
+            fs.remove('noirr')
+            ir = 'noirr'
+        else:
+            fs.remove('firr')
+            ir = 'firr'
 
-    if len(fs) == 9:
-        variables.append(fs[4])
-        scens.append(fs[3])
-        scens_full.append(fs[3] + '_' + ir)
-    elif len(fs) == 10: # pt files, etc.
-        variables.append(fs[5])
-        scens.append(fs[3] + '_' + fs[4])
-        scens_full.append('_'.join([fs[3], ir, fs[4]]))
-    else:
-	continue # irregular files
+        if len(fs) == 9:
+            variables.append(fs[4])
+            scens.append(fs[3])
+            scens_full.append(fs[3] + '_' + ir)
+        elif len(fs) == 10:  # pt files, etc.
+            variables.append(fs[5])
+            scens.append(fs[3] + '_' + fs[4])
+            scens_full.append('_'.join([fs[3], ir, fs[4]]))
+        else:
+            continue
 
-variables  = list(set(variables));  variables.sort()
-scens      = list(set(scens));      scens.sort()
-scens_full = list(set(scens_full)); scens_full.sort()
+    variables = list(set(variables))
+    scens = list(set(scens))
+    scens_full = list(set(scens_full))
 
-# number of variables, times, scenarios, aggregation levels
-nv, nt, ns, na = len(variables), len(time), len(scens), len(audata)
+    variables.sort()
+    scens.sort()
+    scens_full.sort()
 
-# preallocate final averages and areas
-averages = masked_array(zeros((nv, na, nt, ns, 3)), mask = ones((nv, na, nt, ns, 3)))
-areas    = masked_array(zeros((na, nt, ns, 3)),     mask = ones((na, nt, ns, 3)))
+    # number of variables, times, scenarios, aggregation levels
+    nv = len(variables)
+    nt = len(time)
+    ns = len(scens)
+    na = len(audata)
 
-# aggregator object
-avobj = MeanAverager()
+    # preallocate final averages and areas
+    averages = masked_array(zeros((nv, na, nt, ns, 3)), mask=ones((nv, na, nt, ns, 3)))
+    areas = masked_array(zeros((na, nt, ns, 3)), mask=ones((na, nt, ns, 3)))
 
-vunits = [''] * nv
-for i in range(len(scens_full)):
-    scen_irr = scens_full[i]
+    # aggregator object
+    avobj = MeanAverager()
 
-    # find scenario and irr
-    scen_irr_split = scen_irr.split('_')
-    if len(scen_irr_split) == 2:
-        sidx = scens.index(scen_irr_split[0])
-    else:
-        sidx = scens.index('_'.join(scen_irr_split[0 :: 2]))
-    iidx = int(scen_irr_split[1] != 'firr')
+    vunits = [''] * nv
+    for i in range(len(scens_full)):
+        scen_irr = scens_full[i]
 
-    # load planting file
-    plantingfile = findfile(files, scen_irr, 'plant-day')
-    if plantingfile:
-        with nc(indir + sep + plantingfile) as f:
-            pd = f.variables['plant-day_' + crop][0]
-    else:
-        pd = pdate[iidx]
+        # find scenario and irr
+        scen_irr_split = scen_irr.split('_')
+        if len(scen_irr_split) == 2:
+            sidx = scens.index(scen_irr_split[0])
+        else:
+            sidx = scens.index('_'.join(scen_irr_split[0::2]))
+        iidx = int(scen_irr_split[1] != 'firr')
 
-    # load harvest file
-    harvestfile = findfile(files, scen_irr, 'maty-day')
-    if harvestfile:
-        with nc(indir + sep + harvestfile) as f:
-            hd = f.variables['maty-day_' + crop][0]
-    else:
-        hd = hdate[iidx]
+        # load planting file
+        plantingfile = findfile(files, scen_irr, 'plant-day')
+        if plantingfile:
+            with Dataset(indir + sep + plantingfile) as f:
+                pd = f.variables['plant-day_' + crop][0]
+        else:
+            pd = pdate[iidx]
 
-    # convert to Julian day
-    hd = mod(pd + hd, 366)
-    hd[hd == 0] = 1
+        # load harvest file
+        harvestfile = findfile(files, scen_irr, 'maty-day')
+        if harvestfile:
+            with Dataset(indir + sep + harvestfile) as f:
+                hd = f.variables['maty-day_' + crop][0]
+        else:
+            hd = hdate[iidx]
 
-    # load yield file
-    yieldfile = findfile(files, scen_irr, 'yield')
-    if yieldfile == []:
-        yvar = masked_array(zeros((nt,) + pd.shape), mask = zeros((nt,) + pd.shape))
-    else:
-        with nc(indir + sep + yieldfile) as f:
-            yvar = f.variables['yield_' + crop][:]
-            yvar = shiftdata(yvar, pd, hd, yearthr)     # shift data
-            yvar = masked_where(yvar < yieldthr1, yvar) # mask yields below threshold
-            yvar = masked_where(yvar > yieldthr2, yvar) # mask yields above threshold
-            yvar = yvar[yrsinrange]                     # restrict to overlapping years
-    ymsk = logical_not(yvar.mask)
+        # convert to Julian day
+        hd = mod(pd + hd, 366)
+        hd[hd == 0] = 1
 
-    # compute areas
-    print ymsk.sum(), ymsk.shape, adata.shape, weights[iidx].shape
-    areas[:, :, sidx, iidx] = avobj.areas(yvar, adata, lats, weights[iidx], calcarea)
+        # load yield file
+        yieldfile = findfile(files, scen_irr, 'yield')
+        if not yieldfile:
+            yvar = masked_array(zeros((nt,) + pd.shape), mask=zeros((nt,) + pd.shape))
+        else:
+            with Dataset(indir + sep + yieldfile) as f:
+                yvar = f.variables['yield_' + crop][:]
+                yvar = shiftdata(yvar, pd, hd, yearthr)      # shift data
+                yvar = masked_where(yvar < yieldthr1, yvar)  # mask yields below threshold
+                yvar = masked_where(yvar > yieldthr2, yvar)  # mask yields above threshold
+                yvar = yvar[yrsinrange]                      # restrict to overlapping years
+        ymsk = logical_not(yvar.mask)
 
-    for j in range(nv):
-        # load variable
-        varfile = findfile(files, scen_irr, variables[j])
-        if not len(varfile): continue
-        with nc(indir + sep + varfile) as f:
-            var = f.variables[variables[j] + '_' + crop]
-            if not i: vunits[j] = var.units if 'units' in var.ncattrs() else ''
-            var = var[:]
-        var[isnan(var)] = 0.                  # change NaNs to zero
-        var = shiftdata(var, pd, hd, yearthr) # shift data
-        var = var[yrsinrange]                 # restrict to overlapping years
+        # compute areas
+        print ymsk.sum(), ymsk.shape, adata.shape, weights[iidx].shape
+        areas[:, :, sidx, iidx] = avobj.areas(yvar, adata, lats, weights[iidx], calcarea)
 
-        # aggregate
-        averages[j, :, :, sidx, iidx]  = avobj.sum(var, adata, lats, weights[iidx], calcarea, ymsk)
-        averages[j, :, :, sidx, iidx] /= areas[:, :, sidx, iidx]
+        for j in range(nv):
+            # load variable
+            varfile = findfile(files, scen_irr, variables[j])
+            if not len(varfile):
+                continue
+            with Dataset(indir + sep + varfile) as f:
+                var = f.variables[variables[j] + '_' + crop]
+                if not i:
+                    vunits[j] = var.units if 'units' in var.ncattrs() else ''
+                var = var[:]
+            var[isnan(var)] = 0.                   # change NaNs to zero
+            var = shiftdata(var, pd, hd, yearthr)  # shift data
+            var = var[yrsinrange]                  # restrict to overlapping years
 
-# sum areas
-area1, area2 = areas[:, :, :, 0], areas[:, :, :, 1]
-area1[logical_and(area1.mask, ~area2.mask)] = 0.
-area2[logical_and(area2.mask, ~area1.mask)] = 0. 
-areas[:, :, :, 2] = area1 + area2
+            # aggregate
+            averages[j, :, :, sidx, iidx] = avobj.sum(var, adata, lats, weights[iidx], calcarea, ymsk)
+            averages[j, :, :, sidx, iidx] /= areas[:, :, sidx, iidx]
 
-# create output file
-fout = AggregationFile(outfile, time, tunits, scens, audata, aname, aunits, alongname)
+    # sum areas
+    area1, area2 = areas[:, :, :, 0], areas[:, :, :, 1]
+    area1[logical_and(area1.mask, ~area2.mask)] = 0.
+    area2[logical_and(area2.mask, ~area1.mask)] = 0.
+    areas[:, :, :, 2] = area1 + area2
 
-# add area
-fout.append('area_' + aname, areas, (aname, 'time', 'scen', 'irr'), 'hectares', aname + ' harvested area')
+    # create output file
+    fout = AggregationFile(outfile, time, tunits, scens, audata, aname, aunits, alongname)
 
-# add variables
-for i in range(nv):
-    # average
-    av1 = areas[:, :, :, 0] * averages[i, :, :, :, 0]
-    av2 = areas[:, :, :, 1] * averages[i, :, :, :, 1]
-    av1[logical_and(av1.mask, ~av2.mask)] = 0.
-    av2[logical_and(av2.mask, ~av1.mask)] = 0.
-    averages[i, :, :, :, 2] = (av1 + av2) / areas[:, :, :, 2]
+    # add area
+    fout.append('area_' + aname, areas, (aname, 'time', 'scen', 'irr'), 'hectares', aname + ' harvested area')
 
-    fout.append(variables[i] + '_' + aname, averages[i], (aname, 'time', 'scen', 'irr'), vunits[i], 'average ' + aname + ' ' + variables[i])
+    # add variables
+    for i in range(nv):
+        # average
+        av1 = areas[:, :, :, 0] * averages[i, :, :, :, 0]
+        av2 = areas[:, :, :, 1] * averages[i, :, :, :, 1]
+        av1[logical_and(av1.mask, ~av2.mask)] = 0.
+        av2[logical_and(av2.mask, ~av1.mask)] = 0.
+        averages[i, :, :, :, 2] = (av1 + av2) / areas[:, :, :, 2]
+
+        fout.append(variables[i] + '_' + aname, averages[i], (aname, 'time', 'scen', 'irr'), vunits[i], 'average ' +
+                    aname + ' ' + variables[i])
+
+
+if __name__ == "__main__":
+    main()
+

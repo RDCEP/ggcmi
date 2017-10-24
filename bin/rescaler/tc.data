@@ -1,2 +1,2 @@
-midway rescaler rescaler.py null null null
+midway rescaler rescaler_wrapper.sh null null null
 midway inputs inputs.sh null null null

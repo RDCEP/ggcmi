@@ -26,12 +26,13 @@ climates=( $( get_param climates ) )
 climate_years=( $( get_param climate_years ) )
 
 # Header
-echo indir crop lufile agg gsfile outfile
+echo indir crop lufile agg gsfile year_start outfile
 
 for model in ${models[@]}; do
    for ((w = 0; w < ${#climates[@]}; w++)); do
       weath=${climates[$w]}
       wyear=${climate_years[$w]}
+      start_year=$( echo $wyear | cut -d'_' -f1 )
       for ((c = 0; c < ${#crops_long[@]}; c++)); do
          croplong=${crops_long[$c]}
          cropshort=${crops_short[$c]}
@@ -60,7 +61,7 @@ for model in ${models[@]}; do
                fi
                ofile=$outdir/${model,,}_${weath,,}_hist_${cropshort}_annual_${wyear}.nc4
                mkdir -p $outdir
-               echo $indir $cropshort $wfile $aggmaskfile:$aggmask $gsfile $ofile
+               echo $indir $cropshort $wfile $aggmaskfile:$aggmask $gsfile $start_year $ofile
             done
          done
       done
