@@ -111,29 +111,48 @@ def evaluate(val, equation, c, t, w, n):
         w (float): Water level
         n (float): Nitrogen level
     Returns:
-        ndarray representing
+        equation, ndarray of output data
     """
-    mods = []
-    for idx, term in enumerate(equation):
-        # constant: '1', '22'
-        if is_float(term):
-            mods.append(float(term))
-        # variable: 'c', 't'
-        elif len(term) == 1:
-            mods.append(locals()[term])
-        # exponent: c2, c23
-        elif len(term) > 1 and term[0].isalpha() and is_float(term[1:]):
-            mods.append(locals()[term[0]] ** float(term[1:]))
-        # cross terms: cn, tw, nt
-        else:
-            prod = 1.0
-            for termitem in term:
-                prod *= locals()[termitem]
-            mods.append(prod)
+    mods = np.ma.masked_array(np.ones(val.shape))
+    new_equation = equation[:]
+    dims_to_preserve = []
+    dims_to_remove = []
 
-    for midx, m in enumerate(mods):
-        val[midx] *= m
-    return np.nansum(val, axis=0)
+    for idx, term in enumerate(equation):
+        try:
+            # constant: '1', '22'
+            if is_float(term):
+                mods[idx] = float(term)
+            # variable: 'c', 't'
+            elif len(term) == 1:
+                mods[idx] = float(locals()[term])
+            # exponent: c2, c23
+            elif len(term) > 1 and term[0].isalpha() and is_float(term[1:]):
+                mods[idx] = float(locals()[term[0]]) ** float(term[1:])
+            # cross terms: cn, tw, nt
+            else:
+                prod = 1.0
+                for termitem in term:
+                    prod *= float(locals()[termitem])
+                mods[idx] = prod
+            dims_to_remove.append(idx)
+        except TypeError:
+            dims_to_preserve.append(idx)
+            continue
+
+    if dims_to_preserve:
+        new_equation = ['1'] + [equation[x] for x in dims_to_preserve]
+        mods = mods[dims_to_remove]
+        vals_to_preserve = val[dims_to_preserve]
+        ndims, nlats, nlons = vals_to_preserve.shape
+        ndims += 1
+        newval = np.ma.masked_array(np.ndarray(shape=(ndims, nlats, nlons)))
+        newval[0] = np.nansum(val[dims_to_remove] * mods, axis=0)
+        newval[1:] = vals_to_preserve
+        return new_equation, newval
+    else:
+        val *= mods
+        return None, np.nansum(val, axis=0)
 
 
 def float_or_netcdf(val, desc, minimum, maximum, parser):
@@ -150,6 +169,8 @@ def float_or_netcdf(val, desc, minimum, maximum, parser):
     Returns:
         val, as either a float or a numpy array
     """
+    if not val:
+        return val
     if is_float(val):
         val = float(val)
         if minimum <= val <= maximum:
@@ -191,7 +212,7 @@ def is_netcdf(f):
 
 def process_var(var, desc, nc, nlats, nlons, c, t, w, n):
     """
-    Given a variable, netcdf, and c,t,w,n levels, create a numpy array of outputs
+    Given a variable, netcdf, and c/t/w/n levels, create a numpy array of outputs
     Args:
         var (string): Fit file variable name
         desc (string): Fit file variable description
@@ -206,17 +227,18 @@ def process_var(var, desc, nc, nlats, nlons, c, t, w, n):
         If variable exists in nc, return a masked ndarray containing the evaluated results
         Otherwise, return an empty masked ndarray with all masked values
     """
+    equation = []
     if var in nc.variables:
         print "Processing %s '%s'" % (desc, var)
         data = nc.variables[var][:]
         funcdim = nc.variables[var].dimensions[0]
         equation = [str(x) for x in nc.variables[funcdim].long_name.split(',')]
         data.unshare_mask()
-        data = evaluate(data, equation, c, t, w, n)
+        equation, data = evaluate(data, equation, c, t, w, n)
     else:
         print "Unable to find %s '%s', skipping" % (desc, var)
         data = np.ma.masked_array(np.ndarray((nlats, nlons)), mask=True)
-    return data
+    return equation, data
 
 
 def run_nco(operator, input_file, output_file, nco_options, out_stream):
@@ -250,15 +272,12 @@ def main():
     parser.add_argument("-aggmask", "--aggmask", default="%s/gadm.nc4" % mask_path, help="Aggregation mask")
     parser.add_argument("-aggweight", "--aggweight", help="Aggregation weight")
     parser.add_argument("-aggoutput", "--aggoutput", default="output.agg.nc", help="Aggregation output filename")
-    parser.add_argument("-c", "--c", required=True, help="Atmospheric co2 concentration (ppm)")
-    parser.add_argument("-t", "--t", required=True,
-                        help="Temperature anomalies NetCDF, or a fixed value from -1 to 6 C")
-    parser.add_argument("-w", "--w", required=True,
-                        help="Precipitation anomolies NetCDF, or a fixed percentage from -0.5 to 0.3")
-    parser.add_argument("-n", "--n", required=True,
-                        help="Fertilizer NetCDF, or fixed amount from 10 to 200 kg/ha")
+    parser.add_argument("-c", "--c", help="Atmospheric co2 concentration (ppm)")
+    parser.add_argument("-t", "--t", help="Temperature anomalies NetCDF, or a fixed value from -1 to 6 C")
+    parser.add_argument("-w", "--w", help="Precipitation anomolies NetCDF, or a fixed percentage from -0.5 to 0.3")
+    parser.add_argument("-n", "--n", help="Fertilizer NetCDF, or fixed amount from 10 to 200 kg/ha")
     parser.add_argument("-fit", "--fit", required=True, help="Fit file")
-    parser.add_argument("-o", "--o", default="output.nc", help="Output file")
+    parser.add_argument("-o", "--o", "-output", "--output", default="output.nc", help="Output file")
     args = parser.parse_args()
 
     if args.agg or args.aggweight:
@@ -279,19 +298,23 @@ def main():
     long_name = fitnc.long_name if 'long_name' in fitnc.ncattrs() else None
     units = fitnc.units if 'units' in fitnc.ncattrs() else None
 
-    rfdata = process_var(rfvar, "rainfed variable", fitnc, lats.size, lons.size, c, t, w, n)
-    irrdata = process_var(irrvar, "irrigated variable", fitnc, lats.size, lons.size, c, t, w, n)
-    result = np.ma.array(np.ndarray((irr.size, lats.size, lons.size)))
-    result[0] = rfdata[:]
-    result[1] = irrdata[:]
-    result = np.ma.masked_where(result < 0, result)
+    rfequation, rfdata = process_var(rfvar, "rainfed variable", fitnc, lats.size, lons.size, c, t, w, n)
+    irrequation, irrdata = process_var(irrvar, "irrigated variable", fitnc, lats.size, lons.size, c, t, w, n)
+
+    fit = False
+    if rfequation or irrequation:
+        fit = True
+        args.agg = None
+
+    if not fit:
+        result = np.ma.array(np.ndarray((irr.size, lats.size, lons.size)))
+        result[0] = rfdata[:]
+        result[1] = irrdata[:]
+        result = np.ma.masked_where(result < 0, result)
 
     with Dataset(args.o, "w") as nc:
         nc.createDimension("lat", lats.size)
         nc.createDimension("lon", lons.size)
-        nc.createDimension("irr", irr.size)
-        nc.createVariable("irr", "i4", "irr")[:] = np.arange(irr.size)
-        nc.variables['irr'].long_name = "rf, irr"
         latvar = nc.createVariable("lat", "f4", "lat")
         latvar[:] = lats[:]
         latvar.axis = "Y"
@@ -304,12 +327,34 @@ def main():
         lonvar.long_name = "longitude"
         lonvar.standard_name = "longitude"
         lonvar.units = "degrees_east"
-        var = nc.createVariable(out_var, "f4", ("irr", "lat", "lon"), fill_value=1e20, zlib=True, complevel=9)
-        var[:] = result[:]
-        if units:
-            var.units = units
-        if long_name:
-            var.long_name = long_name
+        if fit:
+            nc.variable = out_var
+            nc.units = units
+            nc.long_name = long_name
+            nc.createDimension("funcs", len(rfequation))
+            nc.createDimension("funcsirr", len(irrequation))
+            fitparms = nc.createVariable("fitparms", "f4", ("funcs", "lat", "lon"), fill_value=1e20, zlib=True)
+            fitparms.long_name = "Quadratic fit parameters"
+            fitparms[:] = rfdata[:]
+            fitparmsirr = nc.createVariable("fitparmsirr", "f4", ("funcsirr", "lat", "lon"), fill_value=1e20, zlib=True)
+            fitparmsirr.long_name = "Quadratic fit parameters"
+            fitparmsirr[:] = irrdata[:]
+            funcs = nc.createVariable("funcs", "f8", "funcs", fill_value=1e20, zlib=True)
+            funcs.long_name = ",".join(rfequation)
+            funcs[:] = np.arange(len(rfequation))
+            funcsirr = nc.createVariable("funcsirr", "f8", "funcsirr", fill_value=1e20, zlib=True)
+            funcsirr.long_name = ",".join(irrequation)
+            funcsirr[:] = np.arange(len(irrequation))
+        else:
+            nc.createDimension("irr", irr.size)
+            nc.createVariable("irr", "i4", "irr")[:] = np.arange(irr.size)
+            nc.variables['irr'].long_name = "rf, irr"
+            var = nc.createVariable(out_var, "f4", ("irr", "lat", "lon"), fill_value=1e20, zlib=True, complevel=9)
+            var[:] = result[:]
+            if units:
+                var.units = units
+            if long_name:
+                var.long_name = long_name
 
     if args.agg:
         tempdir = os.path.join(os.getcwd(), 'agg.temp')
@@ -336,8 +381,7 @@ def main():
         for lev in levels:
             reglist = list(set(regions[lev].tolist()))
             for regidx, reg in enumerate(reglist):
-                sys.stdout.write('\rAggregating %s region %d/%d' % (lev, regidx+1, len(reglist)))
-                sys.stdout.flush()
+                print "Aggregation %s region %d/%d" % (lev, regidx+1, len(reglist))
                 tmpfile = os.path.join(tempdir, 'tempfile.%s.%09d' % (lev, reg))
                 aggregate(merged, tmpfile, out_var, lev, reg, 'area', tempdir, devnull)
             print
